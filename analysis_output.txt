@@ -1,0 +1,52 @@
+--- EXCEL DATASET ---
+Shape: (5, 19)
+Columns: ['Latitude', 'Longitude', 'Aspect (Degree)', 'Drainage Density (m)', 'Elevation (m)', 'Ferrous Materials', 'Geology_Formation', 'Land_Use', 'NDVI_Value', 'Plan Curvature', 'Profile Curvature', 'Rainfall (mm)', 'Slope (Degree)', 'Soil Type', 'SPI', 'TPI', 'TRI', 'TWI', 'Woreda']
+Data types:
+Latitude                float64
+Longitude               float64
+Aspect (Degree)         float64
+Drainage Density (m)    float64
+Elevation (m)             int64
+Ferrous Materials        object
+Geology_Formation        object
+Land_Use                 object
+NDVI_Value              float64
+Plan Curvature          float64
+Profile Curvature       float64
+Rainfall (mm)           float64
+Slope (Degree)          float64
+Soil Type                object
+SPI                     float64
+TPI                     float64
+TRI                     float64
+TWI                     float64
+Woreda                   object
+dtype: object
+
+--- DOCX CONTENT ---
+                    Deep Learning Assignment Project Title: Early Detection of Soil Erosion Using Deep Learning Approach ID Name of the Student Remark DBU1501482 Surafel Asfawosen DBU1501397 Nardos Molla DBU1501062 Bethelehem Asres DBU1501631 Ephrata Yeshaneh DBU1501024 Beimnet Yealembirhan DBU1501656 Yonatan Kiros DBU1501050 Besufekad Ayalkbet                                                                                                                   Supervised: Baye Y. (Ph.D.)                                                                                                                   Submission Date: 1/1/2026 Table of Contents Project Title: Early Detection of Soil Erosion Using Deep Learning Approach 1 List of Tables 3 List of Figures 4 Abstract 5 1. Introduction 6 2. Statement of the problem 7 2.1 Problem Statement 7 2.2 Motivation for Using Deep Learning (DAE with DEC) 7 3. Objective 7 3.1 General Objective 7 3.2 Specific Objectives 8 4. Project Scope 9 5. Project Methodology 9 5.1 General Methodological Approach 9 5.2 Acquisition and Study Area Characterization 10 5.3 Description of Input Features 10 5.4 Data Preprocessing 12 5.5 Denoising Autoencoder for Latent Feature Extraction 13 5.6 latent features Z 14 5.7 Deep Embedding Clustering (DEC) 14 5.8 Erosion Score 17 6. Discussions and Results 17 7. Conclusion and Future Works Conclusion 21 7.1 Conclusion 21 7.2 Future Work 21 List of Tables Table 1: Detailed breakdown of the project scope 9 List of Figures Figure 1: Workflow for unsupervised deep learning-based soil erosion risk assessment using DAE and DEC. 10 Figure 2: Denoising Autoencoder Training Performance (zoomed on Zigzag Regional). 17 Figure 3: A bar chart that shows the 3 clusters . 18 Figure 4: 3D PCA Projection of Latent Space Colored by DEC Cluster 19 Figure 5: latent dimension VS physical variable. 20 Figure 6: Workflow for unsupervised deep learning-based soil erosion risk assessment using DAE and DEC. 20 Abstract Soil erosion is a critical geo-environmental hazard in Ethiopia, driven by complex and non-linear interactions among terrain characteristics, climatic factors such as rainfall, and vegetation cover. Conventional linear and rule-based soil erosion susceptibility models often struggle to capture this complexity, particularly under real-world conditions where environmental data are noisy, heterogeneous, and incomplete. To address these limitations, this study proposes an unsupervised deep learning–based framework capable of learning generalized and previously unseen patterns of soil erosion risk. The methodology is applied to five woredas—Ankober, Menjar, Kewet, Merabet, and Menze Gera—in the Amhara Regional State of Ethiopia. The framework first employs a Denoising Autoencoder (DAE) to reduce noise and extract robust latent features that represent the underlying structure of the environmental data. These latent representations are then used as input to a Deep Embedded Clustering (DEC) model, which automati
+
+--- NOTEBOOK INFO ---
+Number of cells: 62
+Markdown cells (first 10):
+# *Import Libraries and Load our Dataset*
+---
+# *Clean Column Names*
+---
+# *Check Missing Values*
+---
+# *HANDLE MISSING VALUES*
+---
+# *Extract unique categories from your dataset*
+---
+# *Circular Features (Aspect + Lat/Lon)*
+---
+# *SLOPE, NDVI, RAINFALL Scaling*
+---
+# *SAFE TRANSFORMATION FOR SKEWED VARIABLES*
+# *& StandardScaler after all values are safe*
+---
+# *StandardScaler For Curvatures*
+---
+# *Elevation scaling using MinMax*
+---

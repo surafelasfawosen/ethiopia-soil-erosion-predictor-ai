@@ -1,0 +1,12 @@
+# Ignore massive datasets and outputs that will crash GitHub
+*.xlsx
+*.csv
+*.html
+
+# Ignore massive accidental Jupyter Notebooks > 100MB
+Early Detection of Soil Erosion.ipynb
+Early Detection of Soil Erosion - Copy.ipynb
+
+# Ignore python caches
+__pycache__/
+.ipynb_checkpoints/
