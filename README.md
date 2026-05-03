@@ -1,8 +1,7 @@
 # Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion
 
 <div align="center">
-  <h3><a href="https://surafelasfawosen.github.io/ethiopia-soil-erosion-predictor-ai/">🌐 View Full Published Research Paper (Interactive HTML)</a></h3>
-</div>
+  <h3><a href="https://htmlpreview.github.io/?https://github.com/surafelasfawosen/ethiopia-soil-erosion-predictor-ai/blob/main/index.html">🌐 View Full Published Research Paper (Interactive HTML)</a></h3>
 </div>
 
 ## 📖 Executive Summary
