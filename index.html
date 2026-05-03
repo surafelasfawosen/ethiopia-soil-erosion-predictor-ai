@@ -55,7 +55,14 @@
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
                 Quantitative Research Report: Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion
             </h1>
-            <h2 class="text-2xl font-semibold text-indigo-700 mb-6">Research Conducted by: Surafel Asfawosen Haile</h2>
+            <h2 class="text-2xl font-semibold text-indigo-700 mb-4">Research Conducted by: Surafel Asfawosen Haile</h2>
+            <div class="flex justify-center space-x-6 mb-8 text-indigo-500">
+                <a href="#" class="hover:text-indigo-800 font-semibold transition-colors">LinkedIn</a>
+                <span class="text-gray-300">|</span>
+                <a href="mailto:surafel.asfawosen@example.com" class="hover:text-indigo-800 font-semibold transition-colors">Email</a>
+                <span class="text-gray-300">|</span>
+                <a href="#" class="hover:text-indigo-800 font-semibold transition-colors">Instagram</a>
+            </div>
             <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
                 A topological machine learning architecture simulating kinetic energy, hydrologic flow, and topographical vulnerability in the Amhara Region.
             </p>
@@ -105,11 +112,6 @@
                 <li><strong>The Middle 90% (Label -1 - Unknown):</strong> The vast majority of the region was masked as "Unknown".</li>
             </ol>
             <p>By utilizing Semi-Supervised Learning, the GCN only trains on the 10% "Anchor Nodes". The AI learns the pure laws of physics from the extreme anchors, and uses its spatial network to mathematically deduce and classify the remaining 90% of Ethiopia.</p>
-            
-            <figure class="my-10">
-                <img src="assets/plot_3.png" alt="Data Bounding" class="w-4/5 mx-auto rounded-lg shadow-xl border border-gray-200">
-                <figcaption class="figure-caption">Figure 1: Ground-Truth Anchor Bounding highlighting Top/Bottom extreme logic.</figcaption>
-            </figure>
         </section>
 
         <section>
@@ -144,7 +146,7 @@
 
             <h3>Figure A: 3D Topological GCN Mesh (Stream Power Index Flow)</h3>
             <p>This visualization demonstrates how the AI perceives hydrological physics. Nodes are elevated based on physical steepness, creating a 3D digital twin. The color gradient (Cyan to Magenta) maps the Stream Power Index (SPI), showing concentrated corridors of kinetic water flow.</p>
-            <figure class="my-8"><img src="assets/plot_4.png" alt="SPI Flow" class="w-full rounded shadow-lg border"></figure>
+            <figure class="my-8"><img src="assets/plot_3.png" alt="SPI Flow" class="w-full rounded shadow-lg border"></figure>
 
             <h3>Figure B: Localized GCN Target Interface (Water Cascades)</h3>
             <p>This localized cross-section isolates the mechanism of <strong>Spatial Message Passing</strong>. The highlighted edges actively simulate physical water cascades, allowing the GCN to dynamically absorb multi-dimensional danger metrics from its neighbors.</p>
@@ -246,7 +248,7 @@
 
         <section>
             <h2>14. Validation: Geographic K-Fold Cross-Validation</h2>
-            <p>To prove definitively that the AI learned universal laws of topographic physics (rather than simply "memorizing" local terrain), I deployed a <code>GroupKFold</code> validation algorithm structured strictly by Woreda borders.</p>
+            <p>To prove definitively that the AI learned universal laws of topographic physics (rather than simply "memorizing" local terrain), I deployed a <code>GroupKFold</code> validation algorithm structured strictly by Woreda borders across the <strong>5 specific Amhara Woredas studied (including Menjar, Merabete, Ankober, and Kewet)</strong>.</p>
             <p>During 5 iterations, 20% of the territory was completely hidden. The AI was forced to comprehend universal slope physics and then run blind inference. It achieved an exceptional <strong>93.89% Generalization Score</strong>.</p>
             
             <h3>Analysis of the Kewet Outlier (Geographic Domain Shift)</h3>

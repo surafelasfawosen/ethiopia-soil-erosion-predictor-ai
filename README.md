@@ -2,6 +2,11 @@
 
 <div align="center">
   <h2>Research Conducted by: Surafel Asfawosen Haile</h2>
+  <p>
+    <b><a href="#">LinkedIn</a></b> | 
+    <b><a href="mailto:surafel.asfawosen@example.com">Email</a></b> | 
+    <b><a href="#">Instagram</a></b>
+  </p>
   <h3><a href="https://raw.githack.com/surafelasfawosen/ethiopia-soil-erosion-predictor-ai/main/index.html">🌐 View Full Published Research Paper (Interactive HTML)</a></h3>
 </div>
 
@@ -62,7 +67,7 @@ The continuous probability outputs were translated into exact policy interventio
 *   **Severe Risk (Immediate Action):** 84,747 spatial nodes (Boundary: > 0.71)
 
 ## 📊 Validation & Results
-I utilized an advanced **5-Fold Geographic Cross-validation** structured strictly by Woreda borders. The AI was forced to comprehend universal slope physics and rainfall algorithms in 4 territorial chunks before being dropped completely blind into the hidden Woreda.
+I utilized an advanced **5-Fold Geographic Cross-validation** structured strictly by Woreda borders across the **5 specific Amhara Woredas studied (Menjar, Merabete, Ankober, Kewet, and Efratana Gidim)**. The AI was forced to comprehend universal slope physics and rainfall algorithms in 4 territorial chunks before being dropped completely blind into the hidden Woreda.
 *   **Overall Predictive Accuracy:** **93.89%**
 *   **The Physics Proof:** The 84,747 nodes sorted into "Severe Risk" perfectly aggregated the sharpest relative slopes (0.37 avg), the worst soil erodibility factors (0.273 avg), and the highest water destruction stream rates (0.0045 avg SPI). This mathematically confirms the AI successfully mastered localized topography.
 
