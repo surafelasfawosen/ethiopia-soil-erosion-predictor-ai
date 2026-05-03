@@ -1,12 +1,6 @@
 # Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion
 
 <div align="center">
-  <h2>Research Conducted by: Surafel Asfawosen Haile</h2>
-  <p>
-    <b><a href="#">LinkedIn</a></b> | 
-    <b><a href="mailto:surafel.asfawosen@example.com">Email</a></b> | 
-    <b><a href="#">Instagram</a></b>
-  </p>
   <h3><a href="https://raw.githack.com/surafelasfawosen/ethiopia-soil-erosion-predictor-ai/main/index.html">🌐 View Full Published Research Paper (Interactive HTML)</a></h3>
 </div>
 
@@ -16,14 +10,9 @@ This repository contains the research and implementation of a novel AI architect
 ## 🧭 The Journey: From Failure to Breakthrough
 Initially, this research attempted to solve the soil erosion detection problem using a combination of **Auto-Encoders, Deep Embedding Clustering, and pure RUSLE calculations**. 
 
-However, this initial approach treated the geospatial data as isolated single points, proving to be **highly ineffective and inconsistent**. Furthermore, the massive dataset entirely lacked existing geological ground-truth labels, making it extremely difficult to create a reliable predictive model. Single-point analysis completely fails to capture fundamental laws of physics: hydrologic flow, gravity, and neighboring topographical features (e.g., a flat pixel located directly below a collapsing 70-degree cliff).
+However, this initial approach treated the geospatial data as isolated single points. It proved to be **highly ineffective and inconsistent**. Single-point analysis fails to capture fundamental laws of physics: hydrologic flow, gravity, and neighboring topographical features (e.g., a flat pixel located directly below a collapsing 70-degree cliff).
 
-To solve these immense data limitations, I pivoted to an advanced topological Semi-Supervised approach.
-
-<div align="center">
-  <img src="assets/plot_8.png" alt="AI Training Loss Graph" width="70%">
-  <p><em>Figure: The optimized training convergence of the Graph Convolutional Network.</em></p>
-</div>
+To solve this, I pivoted to an advanced topological approach.
 
 ## 🔬 Methodology Sequence
 The final methodology implemented in the `Early Detection of Soil Erosion.ipynb` follows this strict sequence:
@@ -67,7 +56,7 @@ The continuous probability outputs were translated into exact policy interventio
 *   **Severe Risk (Immediate Action):** 84,747 spatial nodes (Boundary: > 0.71)
 
 ## 📊 Validation & Results
-I utilized an advanced **5-Fold Geographic Cross-validation** structured strictly by Woreda borders across the **5 specific Amhara Woredas studied (Menjar, Merabete, Ankober, Kewet, and Efratana Gidim)**. The AI was forced to comprehend universal slope physics and rainfall algorithms in 4 territorial chunks before being dropped completely blind into the hidden Woreda.
+I utilized an advanced **5-Fold Geographic Cross-validation** structured strictly by Woreda borders. The AI was forced to comprehend universal slope physics and rainfall algorithms in 4 territorial chunks before being dropped completely blind into the hidden Woreda.
 *   **Overall Predictive Accuracy:** **93.89%**
 *   **The Physics Proof:** The 84,747 nodes sorted into "Severe Risk" perfectly aggregated the sharpest relative slopes (0.37 avg), the worst soil erodibility factors (0.273 avg), and the highest water destruction stream rates (0.0045 avg SPI). This mathematically confirms the AI successfully mastered localized topography.
 
@@ -75,9 +64,7 @@ I utilized an advanced **5-Fold Geographic Cross-validation** structured strictl
   <img src="assets/plot_13.png" alt="Validation Results" width="70%">
 </div>
 
-## 🚀 Future Work: Ongoing Development & Integration
-I will continue developing this Artificial Intelligence architecture. My primary objective moving forward is integrating the AI with real-time early warning dashboards and deploying it into live geographic monitoring systems to actively prevent kinetic soil collapse.
-
 ## 📂 Repository Guide
 
 *   **`Semi_Supervised_Graph_Pipeline_FINAL.ipynb`**: The streamlined version of the GCN pipeline.
+
