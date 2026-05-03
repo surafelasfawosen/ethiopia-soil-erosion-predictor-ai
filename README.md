@@ -1,6 +1,7 @@
 # Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion
 
 <div align="center">
+  <h2>Research Conducted by: Surafel Asfawosen Haile</h2>
   <h3><a href="https://raw.githack.com/surafelasfawosen/ethiopia-soil-erosion-predictor-ai/main/index.html">🌐 View Full Published Research Paper (Interactive HTML)</a></h3>
 </div>
 
@@ -10,9 +11,14 @@ This repository contains the research and implementation of a novel AI architect
 ## 🧭 The Journey: From Failure to Breakthrough
 Initially, this research attempted to solve the soil erosion detection problem using a combination of **Auto-Encoders, Deep Embedding Clustering, and pure RUSLE calculations**. 
 
-However, this initial approach treated the geospatial data as isolated single points. It proved to be **highly ineffective and inconsistent**. Single-point analysis fails to capture fundamental laws of physics: hydrologic flow, gravity, and neighboring topographical features (e.g., a flat pixel located directly below a collapsing 70-degree cliff).
+However, this initial approach treated the geospatial data as isolated single points, proving to be **highly ineffective and inconsistent**. Furthermore, the massive dataset entirely lacked existing geological ground-truth labels, making it extremely difficult to create a reliable predictive model. Single-point analysis completely fails to capture fundamental laws of physics: hydrologic flow, gravity, and neighboring topographical features (e.g., a flat pixel located directly below a collapsing 70-degree cliff).
 
-To solve this, I pivoted to an advanced topological approach.
+To solve these immense data limitations, I pivoted to an advanced topological Semi-Supervised approach.
+
+<div align="center">
+  <img src="assets/plot_8.png" alt="AI Training Loss Graph" width="70%">
+  <p><em>Figure: The optimized training convergence of the Graph Convolutional Network.</em></p>
+</div>
 
 ## 🔬 Methodology Sequence
 The final methodology implemented in the `Early Detection of Soil Erosion.ipynb` follows this strict sequence:
@@ -64,7 +70,9 @@ I utilized an advanced **5-Fold Geographic Cross-validation** structured strictl
   <img src="assets/plot_13.png" alt="Validation Results" width="70%">
 </div>
 
+## 🚀 Future Work: Ongoing Development & Integration
+I will continue developing this Artificial Intelligence architecture. My primary objective moving forward is integrating the AI with real-time early warning dashboards and deploying it into live geographic monitoring systems to actively prevent kinetic soil collapse.
+
 ## 📂 Repository Guide
 
 *   **`Semi_Supervised_Graph_Pipeline_FINAL.ipynb`**: The streamlined version of the GCN pipeline.
-

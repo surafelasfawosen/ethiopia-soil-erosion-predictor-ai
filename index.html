@@ -55,15 +55,21 @@
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
                 Quantitative Research Report: Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion
             </h1>
+            <h2 class="text-2xl font-semibold text-indigo-700 mb-6">Research Conducted by: Surafel Asfawosen Haile</h2>
             <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
                 A topological machine learning architecture simulating kinetic energy, hydrologic flow, and topographical vulnerability in the Amhara Region.
             </p>
         </header>
 
         <!-- The Journey (Background) -->
-        <div class="bg-slate-50 border-l-4 border-slate-400 p-8 mb-16 rounded-r italic text-slate-700 text-lg shadow-sm">
-            <strong>Research Background:</strong> Initially, this research attempted to solve the soil erosion detection problem using a combination of Auto-Encoders, Deep Embedding Clustering, and pure RUSLE calculations. However, this approach treated geospatial data as isolated single points, proving ineffective and inconsistent. Single-point analysis fails to capture fundamental laws of physics like hydrologic flow and gravity. To solve this, I pivoted to the advanced topological approach detailed below.
+        <div class="bg-slate-50 border-l-4 border-slate-400 p-8 mb-8 rounded-r italic text-slate-700 text-lg shadow-sm">
+            <strong>Research Background:</strong> Initially, this research attempted to solve the soil erosion detection problem using a combination of Auto-Encoders, Deep Embedding Clustering, and pure RUSLE calculations. However, this approach was highly ineffective and inconsistent because it treated the geospatial data as isolated single points. Furthermore, the massive dataset entirely lacked existing geological ground-truth labels, making it extremely difficult to create a reliable predictive model. Single-point analysis completely fails to capture fundamental laws of physics like hydrologic flow and gravity. To solve these immense data limitations, I pivoted to the advanced topological Semi-Supervised approach detailed below.
         </div>
+
+        <figure class="my-10 mb-16">
+            <img src="assets/plot_8.png" alt="AI Training Loss Graph" class="w-3/4 mx-auto rounded shadow-lg border">
+            <figcaption class="figure-caption">Figure: The optimized training convergence of the Graph Convolutional Network.</figcaption>
+        </figure>
 
         <section>
             <h2>1. Feature Engineering: Geotechnical Soil Erodibility (K-Factor)</h2>
@@ -178,9 +184,6 @@
             <h2>9. Algorithmic Optimization Loop</h2>
             <p>I utilized the Adaptive Moment Estimation (<code>Adam</code>) optimizer paired with a Negative Log Likelihood Loss function. Crucially, the backpropagation loss penalty is <em>exclusively</em> calculated against the 10% Anchor Nodes.</p>
             <p>To prevent overfitting, I equipped the sequence with an asymptotic <strong>Early Stopping</strong> trigger. Once the loss reduction delta naturally plateaus, the algorithm concludes it has fully mastered the terrain's physics and instantly terminates the loop.</p>
-            <figure class="my-10">
-                <img src="assets/plot_8.png" alt="Optimization Loop" class="w-3/4 mx-auto rounded shadow-lg border">
-            </figure>
         </section>
 
         <section>
@@ -270,6 +273,11 @@
                 <img src="assets/plot_13.png" alt="Validation Misclassification" class="w-full rounded shadow-xl border border-gray-300">
                 <figcaption class="figure-caption font-bold text-gray-800">The Final Interactive Visualization: Revealing the physical intelligence behind the topological "Misclassifications".</figcaption>
             </figure>
+        </section>
+
+        <section class="mt-16 border-t-2 pt-12">
+            <h2>16. Future Work: Ongoing Development & Integration</h2>
+            <p class="text-lg">I will continue developing this Artificial Intelligence architecture. My primary objective moving forward is integrating the AI with real-time early warning dashboards and deploying it into live geographic monitoring systems to actively prevent kinetic soil collapse.</p>
         </section>
 
     </article>
