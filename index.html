@@ -74,7 +74,7 @@
 
         <!-- The Journey (Background) -->
         <div class="bg-slate-50 border-l-4 border-slate-400 p-6 mb-12 rounded-r italic text-slate-700">
-            <strong>Research Background:</strong> Initially, this research attempted to solve the soil erosion detection problem using a combination of Auto-Encoders, Deep Embedding Clustering, and pure RUSLE calculations. However, this approach treated geospatial data as isolated single points, proving ineffective and inconsistent. Single-point analysis fails to capture fundamental laws of physics like hydrologic flow and gravity. To solve this, we pivoted to the advanced topological approach detailed below.
+            <strong>Research Background:</strong> Initially, this research attempted to solve the soil erosion detection problem using a combination of Auto-Encoders, Deep Embedding Clustering, and pure RUSLE calculations. However, this approach treated geospatial data as isolated single points, proving ineffective and inconsistent. Single-point analysis fails to capture fundamental laws of physics like hydrologic flow and gravity. To solve this, I pivoted to the advanced topological approach detailed below.
         </div>
 
         <!-- Section 1 -->
@@ -84,15 +84,9 @@
                 Traditional predictive models treat geospatial data in isolation (e.g., Random Forest evaluating a single 30m² pixel). This fails to capture hydrologic flow and gravity constraints. 
             </p>
             <p>
-                We selected a <strong>Semi-Supervised Graph Convolutional Network (GCN)</strong> architecture to model the <em>Amhara</em> region as an interconnected mathematical mesh. By processing <strong>~255,000 massive geospatial data nodes</strong>, the GCN dynamically evaluates erosion vulnerability by passing continuous environmental risks across spatial geographic edges.
+                I selected a <strong>Semi-Supervised Graph Convolutional Network (GCN)</strong> architecture to model the <em>Amhara</em> region as an interconnected mathematical mesh. By processing <strong>~255,000 massive geospatial data nodes</strong>, my GCN dynamically evaluates erosion vulnerability by passing continuous environmental risks across spatial geographic edges.
             </p>
         </section>
-
-        <!-- Figure 1 -->
-        <figure class="my-12">
-            <img src="assets/plot_7.png" alt="Erosion Topology Output" class="w-full rounded shadow-md border border-gray-100">
-            <figcaption class="figure-caption">Figure 1: Visualization of the geographic topology and output prediction mappings.</figcaption>
-        </figure>
 
         <!-- Section 2 -->
         <section class="mb-12">
@@ -116,31 +110,42 @@
         <section class="mb-12">
             <h2 class="text-2xl font-bold text-gray-900 mb-4 border-b pb-2">3. Creating the Ground-Truth: Physics-Informed Hard Bounding</h2>
             <p class="mb-4">
-                To train the Semi-Supervised network, we required highly accurate seed labels. Instead of human manual labeling or fully unsupervised statistical guessing (which we proved unreliable), we originated a <strong>Physics-Informed Hard Bounding</strong> method:
+                To train the Semi-Supervised network, I required highly accurate seed labels. Instead of human manual labeling or fully unsupervised statistical guessing (which I proved unreliable), I originated a <strong>Physics-Informed Hard Bounding</strong> method:
             </p>
             <ol class="list-decimal pl-6 space-y-4">
-                <li><strong>Risk Equation:</strong> We calculated a pseudo-RUSLE localized severity score: <span class="math-highlight">(Slope × Rainfall × SPI × K-Factor) / NDVI</span>.</li>
+                <li><strong>Risk Equation:</strong> I calculated a pseudo-RUSLE localized severity score: <span class="math-highlight">(Slope × Rainfall × SPI × K-Factor) / NDVI</span>.</li>
                 <li><strong>Top 5% Extreme Danger Mask:</strong> The absolute top 5% of coordinates (<strong>~12,500 nodes</strong>) displaying catastrophic environmental combinations were strictly hardcoded as <code>Label 1 (Severe Erosion)</code>.</li>
                 <li><strong>Bottom 5% Extreme Safety Mask:</strong> The lowest 5% of coordinates (<strong>~12,500 nodes</strong>)—characterized by flat land, heavy vegetation, and cohesive clay—were hardcoded as <code>Label 0 (Safe)</code>.</li>
                 <li><strong>The Unknown Matrix:</strong> The remaining <strong>90% of the map (~230,000 nodes)</strong> was left entirely blank (<code>NaN</code>). The Graph Neural Network's task was to computationally deduce the risk for these physically via downstream flow logic.</li>
             </ol>
         </section>
 
-        <!-- Figure 2 -->
-        <figure class="my-12">
-            <img src="assets/plot_3.png" alt="Data Bounding" class="w-3/4 mx-auto rounded shadow-md border border-gray-100">
-            <figcaption class="figure-caption">Figure 2: Ground-truth bounding highlighting the Top 5% and Bottom 5% extremes.</figcaption>
-        </figure>
-
         <!-- Section 4 -->
         <section class="mb-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4 border-b pb-2">4. Constructing the Graph Topology & Label Propagation</h2>
-            <p class="mb-4">Using <code>SciPy cKDTree</code>, the raw map was converted into a computational mesh:</p>
-            <ul class="list-disc pl-6 space-y-3">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 border-b pb-2">4. Constructing the Graph Topology & Label Propagation (GCN)</h2>
+            <p class="mb-4">To create the base "mind" of the AI, I needed to teach it how to perceive space. Using <code>SciPy cKDTree</code>, the raw map was converted into a computational mesh:</p>
+            <ul class="list-disc pl-6 space-y-3 mb-6">
                 <li><strong>Network Construction:</strong> Every one of the 255,000 nodes was mathematically tethered to its neighbors calculating absolute euclidean distances.</li>
+            </ul>
+
+            <figure class="my-8">
+                <img src="assets/plot_2.png" alt="Graph Construction" class="w-3/4 mx-auto rounded shadow-md border border-gray-100">
+                <figcaption class="figure-caption">Figure 1: Computational mesh representing the base "mind" of the AI.</figcaption>
+            </figure>
+
+            <p class="mb-4">
+                I engineered the GCN to directly understand the real-world geographical topology of the soil. By processing the interconnected mesh, my AI mathematically perceives the landscape not as isolated pixels, but as a continuous physical environment where forces like gravity and water flow naturally interact across boundaries.
+            </p>
+
+            <ul class="list-disc pl-6 space-y-3">
                 <li><strong>Message Passing (The Avalanche Effect):</strong> During training, the GCN evaluated the <strong>10% known source nodes</strong>. Danger signals were formally transmitted across the graph edges. If a blank farmland pixel was discovered sitting directly downhill from a massive, collapsing 70-degree cliff, the GCN's internal algorithms physically pulled the danger score downhill into the flat tile, correctly escalating its risk assessment in defiance of its base statistics.</li>
             </ul>
         </section>
+
+        <figure class="my-12">
+            <img src="assets/plot_3.png" alt="Data Bounding" class="w-3/4 mx-auto rounded shadow-md border border-gray-100">
+            <figcaption class="figure-caption">Figure 2: Ground-truth bounding logic evaluated by the GCN.</figcaption>
+        </figure>
 
         <!-- Figure 3 -->
         <figure class="my-12">
@@ -152,7 +157,7 @@
         <section class="mb-12">
             <h2 class="text-2xl font-bold text-gray-900 mb-4 border-b pb-2">5. Model Validation: 5-Fold Geographic Cross-Validation</h2>
             <p class="mb-4">
-                To rigorously prove the model modeled actual topology (not merely memorizing isolated GPS coordinates), we utilized an advanced <strong>5-Fold Geographic Cross-validation</strong> structured strictly by Woreda borders.
+                To rigorously prove the model modeled actual topology (not merely memorizing isolated GPS coordinates), I utilized an advanced <strong>5-Fold Geographic Cross-validation</strong> structured strictly by Woreda borders.
             </p>
             <ul class="list-disc pl-6 space-y-3 mb-6">
                 <li><strong>Testing Protocol:</strong> During the evaluation phase, the AI was explicitly banned from seeing any data from target Woredas like <strong>Kewet</strong> during its training session. It was forced to comprehend universal slope physics and rainfall algorithms in the other 4 territorial chunks before being dropped completely blind into the hidden Woreda terrain.</li>
@@ -242,7 +247,7 @@
         </section>
 
         <figure class="my-12 border-t pt-12">
-            <img src="assets/plot_9.png" alt="Final Results" class="w-full rounded shadow-sm border border-gray-100">
+            <img src="assets/plot_13.png" alt="Final Validation Results" class="w-full rounded shadow-sm border border-gray-100">
         </figure>
 
     </article>
