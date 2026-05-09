@@ -63,12 +63,12 @@
             font-size: 1.25rem;
             font-weight: 600;
             color: #1f2937;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
         }
 
         p {
-            margin-bottom: 1.25rem;
+            margin-bottom: 1.5rem;
             text-align: justify;
         }
 
@@ -194,23 +194,23 @@
                 To successfully predict soil erosion, the Neural Network mathematically reconstructs the physical world inside its memory. The following 3D projections visually demonstrate how the GCN abstracts and processes the topographic reality:
             </p>
             
-            <h4 class="font-bold text-gray-800 mt-6 mb-2">A. 3D Topological GCN Mesh (Stream Power Index Flow)</h4>
+            <h4 class="font-bold text-xl text-gray-800 mt-10 mb-4">A. 3D Topological GCN Mesh (Stream Power Index Flow)</h4>
             <p>
                 This visualization demonstrates the foundational way the AI perceives hydrological physics across the landscape. Rather than viewing the map as a flat, two-dimensional image, the network mathematically elevates each node based on its physical steepness, essentially constructing a complete 3D digital twin of the Amhara terrain inside its memory. The vivid color gradient (ranging from cyan to magenta) maps the Stream Power Index (SPI). By visualizing the SPI over the 3D mesh, we can explicitly see how the AI identifies deep ravines and concentrated corridors where kinetic water flow accelerates, creating localized hydraulic stress.
             </p>
-            <figure class="mb-8"><img src="assets/plot_3.png" alt="SPI Flow" class="w-full rounded shadow-lg border"></figure>
+            <figure class="mt-6 mb-12"><img src="assets/plot_3.png" alt="SPI Flow" class="w-full rounded shadow-lg border"></figure>
             
-            <h4 class="font-bold text-gray-800 mt-6 mb-2">B. Localized GCN Target Interface (Water Cascades)</h4>
+            <h4 class="font-bold text-xl text-gray-800 mt-10 mb-4">B. Localized GCN Target Interface (Water Cascades)</h4>
             <p>
                 This localized cross-section isolates the exact mechanism of Spatial Message Passing, which allows the AI to absorb baseline RUSLE data dynamically across space. In traditional physics, water and soil do not stay in one place; they cascade downwards. The highlighted edges in this graph actively simulate these physical water cascades. Instead of calculating risk in isolation, the GCN dynamically absorbs the raw RUSLE metrics (Slope, Rainfall, Vegetation) from all of its topological neighbors. If a node sits below a highly erodible cliff experiencing intense rain, the AI 'passes the message' of that incoming danger down the graph edges, actively transferring the RUSLE kinetic threat to the nodes below.
             </p>
-            <figure class="mb-8"><img src="assets/plot_5.png" alt="Water Cascades" class="w-full rounded shadow-lg border"></figure>
+            <figure class="mt-6 mb-12"><img src="assets/plot_5.png" alt="Water Cascades" class="w-full rounded shadow-lg border"></figure>
             
-            <h4 class="font-bold text-gray-800 mt-6 mb-2">C. Complete GCN State (Multi-Dimensional Magnitude)</h4>
+            <h4 class="font-bold text-xl text-gray-800 mt-10 mb-4">C. Complete GCN State (Multi-Dimensional Magnitude)</h4>
             <p>
                 The final projection represents the fully synthesized, multi-dimensional risk magnitude after the GCN has analyzed all interconnected geographic features. The AI does not simply look at steepness or rainfall; it analyzes the whole feature set simultaneously. For example, it evaluates the precise FAO soil erodibility factor (K-Factor) to understand if the ground is made of solid bedrock or loose sand, while simultaneously factoring in the exact angles of the topography and the root-binding strength of local vegetation. By mapping this continuous, fully-processed risk spectrum over the 3D topographic mesh, the Neural Network correctly isolates catastrophic risk zones—visually represented by the high-intensity magenta peaks—proving its deep understanding of complex geomorphology.
             </p>
-            <figure class="mb-8"><img src="assets/plot_6.png" alt="RUSLE Magnitude" class="w-full rounded shadow-lg border"></figure>
+            <figure class="mt-6 mb-12"><img src="assets/plot_6.png" alt="RUSLE Magnitude" class="w-full rounded shadow-lg border"></figure>
 
             <h3>4.5. Graph Convolutional Network Architecture</h3>
             <p>
