@@ -108,7 +108,7 @@
             </h1>
             <div class="mb-6">
                 <h2 class="text-xl font-semibold text-gray-800 border-none pb-0 mb-1 normal-case tracking-normal">Surafel Asfawosen Haile</h2>
-                <p class="text-md text-gray-600 mb-0 italic">Independent Researcher / Geomatics and AI Specialist</p>
+                <p class="text-md text-gray-600 mb-0 italic">Data Scientist | Independent Researcher | Geomatics and AI Specialist</p>
                 <div class="flex justify-center space-x-4 text-sm text-indigo-600 mt-2">
                     <a href="mailto:surafelasfawwosen@gmail.com" class="hover:underline">surafelasfawwosen@gmail.com</a>
                     <span class="text-gray-400">|</span>
@@ -120,10 +120,10 @@
         <!-- Abstract -->
         <div class="abstract-section">
             <h3 class="abstract-title text-xl font-bold text-center mt-0 mb-4 uppercase tracking-wider text-gray-800">Abstract</h3>
-            <p class="mb-4 text-gray-700">
+            <p class="mb-4 text-gray-700 text-left">
                 Soil erosion is a critical kinetic land degradation process posing severe threats to agricultural sustainability and structural stability, particularly within the Ethiopian Highlands. Traditional detection methodologies frequently rely on isolated single-point analyses or empirical equations like the Revised Universal Soil Loss Equation (RUSLE), which fail to capture the multidimensional, topological flow of kinetic energy and hydrological shear stress. This study proposes a novel Semi-Supervised Spatial Graph Convolutional Network (GCN) architecture to accurately model and predict soil susceptibility across five Woredas in the Amhara Region. By converting 255,000 geospatial satellite pixels into a continuous mathematical mesh utilizing a cKDTree algorithm, the model learns complex geomorphological interactions spanning over two million structural edges. Utilizing a semi-supervised learning paradigm, the GCN is anchored strictly by the top and bottom 5% geometric extremes as ground-truth labels, allowing the network to infer the remaining 90% of the terrain autonomously. The resulting architecture correctly identifies high-risk zones, overcoming anomalies such as the Ethiopian NDVI Paradox, and achieves a generalization score of 93.89% across isolated Woreda validations. The findings demonstrate that topological machine learning can synthesize precise geospatial intelligence critical for disaster prevention and targeted resource allocation.
             </p>
-            <p class="text-sm font-semibold text-gray-600 mb-0">
+            <p class="text-sm font-semibold text-gray-600 mb-0 text-left">
                 <em>Keywords:</em> Graph Convolutional Networks, Soil Erosion, Spatial Analysis, Semi-Supervised Learning, Geomorphology, Ethiopia
             </p>
         </div>
@@ -193,9 +193,24 @@
             <p>
                 To successfully predict soil erosion, the Neural Network mathematically reconstructs the physical world inside its memory. The following 3D projections visually demonstrate how the GCN abstracts and processes the topographic reality:
             </p>
-            <figure class="my-8"><img src="assets/plot_3.png" alt="SPI Flow" class="w-full rounded shadow-lg border"></figure>
-            <figure class="my-8"><img src="assets/plot_5.png" alt="Water Cascades" class="w-full rounded shadow-lg border"></figure>
-            <figure class="my-8"><img src="assets/plot_6.png" alt="RUSLE Magnitude" class="w-full rounded shadow-lg border"></figure>
+            
+            <h4 class="font-bold text-gray-800 mt-6 mb-2">A. 3D Topological GCN Mesh (Stream Power Index Flow)</h4>
+            <p>
+                This visualization demonstrates how the AI perceives hydrological physics. Nodes are elevated based on physical steepness, creating a 3D digital twin of the terrain. The color gradient maps the Stream Power Index (SPI), showing concentrated corridors of kinetic water flow.
+            </p>
+            <figure class="mb-8"><img src="assets/plot_3.png" alt="SPI Flow" class="w-full rounded shadow-lg border"></figure>
+            
+            <h4 class="font-bold text-gray-800 mt-6 mb-2">B. Localized GCN Target Interface (Water Cascades)</h4>
+            <p>
+                This localized cross-section isolates the mechanism of Spatial Message Passing. The highlighted edges actively simulate physical water cascades, allowing the GCN to dynamically absorb multi-dimensional danger metrics from its topological neighbors.
+            </p>
+            <figure class="mb-8"><img src="assets/plot_5.png" alt="Water Cascades" class="w-full rounded shadow-lg border"></figure>
+            
+            <h4 class="font-bold text-gray-800 mt-6 mb-2">C. Complete GCN State (Multi-Dimensional Magnitude)</h4>
+            <p>
+                The final projection represents the fully synthesized, multi-dimensional risk magnitude. By mapping this continuous risk spectrum over the 3D topographic mesh, the Neural Network correctly isolates catastrophic risk zones, visually represented by the high-intensity peaks.
+            </p>
+            <figure class="mb-8"><img src="assets/plot_6.png" alt="RUSLE Magnitude" class="w-full rounded shadow-lg border"></figure>
 
             <h3>4.5. Graph Convolutional Network Architecture</h3>
             <p>
@@ -263,23 +278,28 @@
                 While a rudimentary linear algorithm might falsely label vegetated cliffs as "Safe," the Graph Neural Network accurately weighed the competing physical tensors. The GCN successfully deduced that despite the stabilizing presence of forestation, the combination of catastrophic gravitational shear-stress and massive torrential rainfall violently overpowers biological root systems. 
             </p>
 
-            <h3>5.3. Spatial Susceptibility Analysis and Policy Zones</h3>
+            <h3>5.3. Policy Action Zones</h3>
             <p>
                 To translate neural probabilities into actionable policy boundaries, the continuous susceptibility matrix was subjected to both 1D K-Means Clustering and Jenks Natural Breaks optimization. Both independent algorithms converged on virtually identical boundary thresholds (0.25 and 0.71), establishing empirical proof of the model's stability.
-            </p>
-            <p>
-                The resulting geospatial map explicitly delineates regional erosion hotspots. Severe risk areas are distinctly clustered in geographies where extreme gravitational slopes intersect with highly erodible FAO soil types. Furthermore, the GCN intelligently altered baseline risk classifications based on neighbor proximity—for example, upgrading the risk profile of flat farmlands situated directly beneath unstable, high-rainfall cliffs.
             </p>
             <figure class="my-10">
                 <img src="assets/plot_9.png" alt="Policy Action Zones" class="w-full rounded shadow-xl border border-gray-300">
                 <figcaption class="figure-caption">Figure 3: Policy Action Zones defined by independent clustering algorithms.</figcaption>
             </figure>
+
+            <h3>5.4. AI Geospatial Prediction Results</h3>
+            <p>
+                The resulting geospatial topographic map explicitly delineates regional erosion hotspots across the five studied Amhara Woredas: Ankober, Kewet, Menjar, Menze Gera, and Merabete. Severe risk areas are distinctly clustered in specific geographies where extreme gravitational slopes intersect with highly erodible FAO soil types and heavy precipitation. 
+            </p>
+            <p>
+                In areas like Ankober and Menze Gera, which feature sheer topographic drops, the AI correctly projects catastrophic kinetic collapse zones. Conversely, the flatter plains of Menjar are appropriately classified as lower risk, barring areas directly adjacent to unstable cliffs. The GCN intelligently altered baseline risk classifications based on neighbor proximity—for example, upgrading the risk profile of flat farmlands situated directly beneath unstable, high-rainfall cliffs. This continuous visual projection empowers local officials in these specific Woredas to pinpoint imminent geological threats and direct structural stabilization resources precisely where the physics mandate them.
+            </p>
             <figure class="my-10">
                 <img src="assets/plot_11.png" alt="Geospatial Topographic Map" class="w-full rounded shadow-xl border border-gray-300">
                 <figcaption class="figure-caption">Figure 4: Geospatial Susceptibility Map of the Amhara Region. Red zones indicate imminent risk of soil detachment.</figcaption>
             </figure>
 
-            <h3>5.4. The Intelligence of "Misclassification"</h3>
+            <h3>5.5. The Intelligence of "Misclassification"</h3>
             <p>
                 The most brilliant aspect of the AI's logic is found in its mathematically "Misclassified" pixels. For example, when a flat piece of farmland is situated directly at the bottom of a massive mountain cliff, standard math sees the 0-degree slope and declares it safe. However, the GCN perceives the cliff towering above receiving heavy rain and dynamically predicts the kinetic chain reaction of a landslide. It intelligently extends the danger zone outward to ensure accurate risk profiling.
             </p>
