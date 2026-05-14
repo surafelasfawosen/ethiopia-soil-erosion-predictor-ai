@@ -523,13 +523,25 @@
                 massive torrential rainfall violently overpowers biological root systems.
             </p>
 
-            <h3>5.4. Policy Action Zones</h3>
-            <p>
-                To translate neural probabilities into actionable policy boundaries, the continuous susceptibility
-                matrix was subjected to both 1D K-Means Clustering and Jenks Natural Breaks optimization. Both
-                independent algorithms converged on virtually identical boundary thresholds (0.25 and 0.71),
-                establishing empirical proof of the model's stability.
-            </p>
+        <h3>5.4. Policy Action Zones</h3>
+<p>
+    Neural probability outputs were translated into actionable policy boundaries by applying both 
+    1D K-Means Clustering and Jenks Natural Breaks optimization to the continuous susceptibility matrix. 
+    Both independent algorithms converged on nearly identical thresholds (0.25 and 0.71), providing 
+    empirical evidence of the model’s stability and robustness.
+</p>
+<p>
+    Based on these thresholds, three distinct susceptibility zones were defined:
+</p>
+<ul>
+    <li><strong>Zone 1 (Low Risk):</strong> values ≤ 0.25</li>
+    <li><strong>Zone 2 (Moderate Risk):</strong> 0.25 &lt; values ≤ 0.71</li>
+    <li><strong>Zone 3 (High Risk):</strong> values &gt; 0.71</li>
+</ul>
+<p>
+    These zones establish clear, interpretable boundaries for policy action and resource prioritization.
+</p>
+
             <figure class="my-10">
                 <img src="assets/plot_9.png" alt="Policy Action Zones"
                     class="w-full rounded shadow-xl border border-gray-300">
