@@ -1,7 +1,7 @@
 # Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion in Ethiopia across 5 Amhara Region Woredas: Ankober, Kewet, Menjar, Menze Gera, and Merabete.
 
 <div align="center">
-  <h3><a href="https://raw.githack.com/surafelasfawosen/ethiopia-soil-erosion-predictor-ai/main/index.html">🌐 View Full Published Research Paper </a></h3>
+  <h3><a href="https://raw.githack.com/surafelasfawosen/ethiopia-soil-erosion-predictor-ai/main/paper.html">🌐 View Full Published Research Paper </a></h3>
 </div>
 
 ## 📖 Executive Summary
