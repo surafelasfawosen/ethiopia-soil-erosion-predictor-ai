@@ -21,6 +21,8 @@ let dragStartX = 0;
 let dragStartY = 0;
 let hoveredNodeIndex = -1;    // Index in rawDataset
 
+let mapMinLat = 90, mapMaxLat = -90, mapMinLon = 180, mapMaxLon = -180;
+
 // Spatial Grid index for O(N) neighbor search and O(1) hover search
 let spatialGrid = null;
 let gridCellSizeLat = 0;
@@ -77,8 +79,7 @@ const CATEGORICAL_KEYS = [
 document.addEventListener("DOMContentLoaded", async () => {
     initDragDrop();
     initFilterHandlers();
-    initZoomControls();
-    initProjectionControls();
+    initMapEvents();
     await loadGCNWeights();
 });
 
@@ -229,37 +230,319 @@ function initFilterHandlers() {
     });
 }
 
-// zoom controls
-function initZoomControls() {
-    document.getElementById("btn-zoom-in").addEventListener("click", () => {
-        mapZoom *= 1.25;
-        triggerMapRedraw();
-    });
-    document.getElementById("btn-zoom-out").addEventListener("click", () => {
-        mapZoom *= 0.8;
-        triggerMapRedraw();
-    });
-    document.getElementById("btn-zoom-reset").addEventListener("click", () => {
-        mapZoom = 1.0;
-        mapOffsetX = 0.0;
-        mapOffsetY = 0.0;
-        triggerMapRedraw();
-    });
+// Mathematical Projection (2D Flat vs 3D Isometric) with Zoom and Pan integrated
+function projectPoint(lat, lon, elevRaw) {
+    const canvas = document.getElementById("map-canvas");
+    if (!canvas) return { x: 0, y: 0 };
+
+    const xNorm = (lon - mapMinLon) / (mapMaxLon - mapMinLon || 0.01);
+    const yNorm = 1.0 - (lat - mapMinLat) / (mapMaxLat - mapMinLat || 0.01); // Flip lat so North is up
+    
+    const elev = parseFloat(elevRaw) || 971.0;
+    const zNorm = (elev - 971.0) / (3668.0 - 971.0 || 1.0); // max height approx 3668m
+    
+    let xProj, yProj;
+    const paddingLeft = 65;
+    const paddingBottom = 45;
+    const paddingTop = 25;
+    const paddingRight = 25;
+
+    if (mapProjectionMode === '2d') {
+        // Flat 2D mapping with padding for axes
+        xProj = paddingLeft + xNorm * (canvas.width - paddingLeft - paddingRight);
+        yProj = paddingTop + yNorm * (canvas.height - paddingTop - paddingBottom);
+    } else {
+        // 3D Isometric Projection
+        const cosR = Math.cos(mapRotationAngle);
+        const sinR = Math.sin(mapRotationAngle);
+        
+        const rx = (xNorm - 0.5) * cosR - (yNorm - 0.5) * sinR;
+        const ry = (xNorm - 0.5) * sinR + (yNorm - 0.5) * cosR;
+        
+        xProj = rx * canvas.width * 0.7 + canvas.width * 0.5;
+        // zNorm * 0.45 height deviation factor (uphill / downhill topography)
+        yProj = (ry * Math.cos(mapTiltAngle) - zNorm * 0.45) * canvas.height * 0.7 + canvas.height * 0.55;
+    }
+
+    // Apply zoom and offset from the center of the canvas
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    return {
+        x: (xProj - centerX) * mapZoom + centerX + mapOffsetX,
+        y: (yProj - centerY) * mapZoom + centerY + mapOffsetY
+    };
 }
 
-// 2D vs 3D Projection controls
-function initProjectionControls() {
+function getCanvasCoordinates(lat, lon, elev) {
+    return projectPoint(lat, lon, elev);
+}
+
+// Reverse projection helper (for hover checks, approximated for 2D/3D)
+function getGeoCoordinates(canvasX, canvasY) {
+    const canvas = document.getElementById("map-canvas");
+    if (!canvas) return null;
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    const rawX = (canvasX - mapOffsetX - centerX) / mapZoom + centerX;
+    const rawY = (canvasY - mapOffsetY - centerY) / mapZoom + centerY;
+
+    if (mapProjectionMode === '2d') {
+        const paddingLeft = 65;
+        const paddingBottom = 45;
+        const paddingTop = 25;
+        const paddingRight = 25;
+        
+        const innerWidth = canvas.width - paddingLeft - paddingRight;
+        const innerHeight = canvas.height - paddingTop - paddingBottom;
+        
+        const lon = ((rawX - paddingLeft) / (innerWidth || 1)) * (mapMaxLon - mapMinLon) + mapMinLon;
+        const lat = (1.0 - ((rawY - paddingTop) / (innerHeight || 1))) * (mapMaxLat - mapMinLat) + mapMinLat;
+        return { lat, lon };
+    } else {
+        // 3D Isometric reverse approximation
+        const cosR = Math.cos(-mapRotationAngle);
+        const sinR = Math.sin(-mapRotationAngle);
+        
+        const rx = (rawX - canvas.width * 0.5) / (canvas.width * 0.7 || 1);
+        const ry = (rawY - canvas.height * 0.55) / (canvas.height * 0.7 * Math.cos(mapTiltAngle) || 1);
+        
+        const xNorm = rx * cosR - ry * sinR + 0.5;
+        const yNorm = rx * sinR + ry * cosR + 0.5;
+
+        const lon = xNorm * (mapMaxLon - mapMinLon) + mapMinLon;
+        const lat = (1.0 - yNorm) * (mapMaxLat - mapMinLat) + mapMinLat;
+        return { lat, lon };
+    }
+}
+
+function getTerrainHeightAndRisk(lon, lat) {
+    if (!rawDataset || rawDataset.length === 0) return { elev: 1000, risk: 0 };
+
+    // Find the closest point in rawDataset/filteredDataset
+    let cellCol = Math.floor((lon - gridMinLon) / (gridCellSizeLon || 0.01));
+    let cellRow = Math.floor((lat - gridMinLat) / (gridCellSizeLat || 0.01));
+    
+    let closestIdx = -1;
+    let minDSq = Infinity;
+    
+    // Search a 3x3 neighborhood of buckets
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+            const nc = cellCol + dx;
+            const nr = cellRow + dy;
+            if (nc >= 0 && nc < gridCols && nr >= 0 && nr < gridRows) {
+                const bucket = spatialGrid[nc][nr];
+                for (let b = 0; b < bucket.length; b++) {
+                    const idx = bucket[b];
+                    const d = rawDataset[idx];
+                    const dSq = (d.Longitude - lon) ** 2 + (d.Latitude - lat) ** 2;
+                    if (dSq < minDSq) {
+                        minDSq = dSq;
+                        closestIdx = idx;
+                    }
+                }
+            }
+        }
+    }
+    
+    if (closestIdx !== -1) {
+        return {
+            elev: parseFloat(rawDataset[closestIdx]['Elevation (m)']) || 1500,
+            risk: predictions[closestIdx] || 0
+        };
+    }
+    return { elev: 1000, risk: 0 };
+}
+
+function drawAxes(cCtx, width, height, pLeft, pBottom, pTop, pRight, baseMinLat, baseMaxLat, baseMinLon, baseMaxLon) {
+    const leftGeo = getGeoCoordinates(pLeft, pTop);
+    const rightGeo = getGeoCoordinates(width - pRight, pTop);
+    const topGeo = getGeoCoordinates(pLeft, pTop);
+    const bottomGeo = getGeoCoordinates(pLeft, height - pBottom);
+
+    const currentMinLon = leftGeo ? leftGeo.lon : baseMinLon;
+    const currentMaxLon = rightGeo ? rightGeo.lon : baseMaxLon;
+    const currentMinLat = bottomGeo ? bottomGeo.lat : baseMinLat;
+    const currentMaxLat = topGeo ? topGeo.lat : baseMaxLat;
+
+    // Draw background for the axes padding areas to clear panned content
+    cCtx.fillStyle = "#ffffff";
+    cCtx.fillRect(0, 0, pLeft, height);
+    cCtx.fillRect(0, height - pBottom, width, pBottom);
+    cCtx.fillRect(width - pRight, 0, pRight, height);
+    cCtx.fillRect(0, 0, width, pTop);
+
+    // Draw axes lines
+    cCtx.strokeStyle = "#475569"; // slate-600
+    cCtx.lineWidth = 1.5;
+    cCtx.font = "10px JetBrains Mono, monospace";
+    cCtx.fillStyle = "#334155"; // slate-700
+    cCtx.textAlign = "center";
+    cCtx.textBaseline = "top";
+
+    cCtx.beginPath();
+    cCtx.moveTo(pLeft, height - pBottom);
+    cCtx.lineTo(width - pRight, height - pBottom);
+    cCtx.stroke();
+
+    cCtx.beginPath();
+    cCtx.moveTo(pLeft, pTop);
+    cCtx.lineTo(pLeft, height - pBottom);
+    cCtx.stroke();
+
+    // Draw ticks and labels on X Axis (Longitude)
+    const ticksX = 5;
+    for (let i = 0; i <= ticksX; i++) {
+        const pct = i / ticksX;
+        const x = pLeft + pct * (width - pLeft - pRight);
+        const lon = currentMinLon + pct * (currentMaxLon - currentMinLon);
+        
+        cCtx.beginPath();
+        cCtx.moveTo(x, height - pBottom);
+        cCtx.lineTo(x, height - pBottom + 5);
+        cCtx.stroke();
+
+        cCtx.fillText(`${lon.toFixed(4)}°E`, x, height - pBottom + 8);
+    }
+
+    // Draw ticks and labels on Y Axis (Latitude)
+    cCtx.textAlign = "right";
+    cCtx.textBaseline = "middle";
+    const ticksY = 5;
+    for (let i = 0; i <= ticksY; i++) {
+        const pct = i / ticksY;
+        const y = height - pBottom - pct * (height - pTop - pBottom);
+        const lat = currentMinLat + pct * (currentMaxLat - currentMinLat);
+        
+        cCtx.beginPath();
+        cCtx.moveTo(pLeft, y);
+        cCtx.lineTo(pLeft - 5, y);
+        cCtx.stroke();
+
+        cCtx.fillText(`${lat.toFixed(4)}°N`, pLeft - 8, y);
+    }
+
+    // Axis Titles
+    cCtx.fillStyle = "#1e293b";
+    cCtx.font = "bold 10px Inter, sans-serif";
+    cCtx.textAlign = "center";
+    
+    cCtx.fillText("LONGITUDE (EAST)", pLeft + (width - pLeft - pRight) / 2, height - 18);
+    
+    cCtx.save();
+    cCtx.translate(15, pTop + (height - pTop - pBottom) / 2);
+    cCtx.rotate(-Math.PI / 2);
+    cCtx.fillText("LATITUDE (NORTH)", 0, 0);
+    cCtx.restore();
+}
+
+function initMapEvents() {
+    const canvas = document.getElementById("map-canvas");
     const btn2d = document.getElementById("btn-proj-2d");
     const btn3d = document.getElementById("btn-proj-3d");
     const rotSliderContainer = document.getElementById("rot-slider-container");
     const rotSlider = document.getElementById("filter-rotation");
+
+    canvas.addEventListener("mousedown", (e) => {
+        if (!rawDataset || rawDataset.length === 0) return;
+        isDraggingMap = true;
+        dragStartX = e.clientX - mapOffsetX;
+        dragStartY = e.clientY - mapOffsetY;
+    });
+
+    window.addEventListener("mouseup", () => {
+        isDraggingMap = false;
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+        if (!rawDataset || rawDataset.length === 0) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        if (isDraggingMap) {
+            mapOffsetX = e.clientX - dragStartX;
+            mapOffsetY = e.clientY - dragStartY;
+            setupCanvasMap();
+        } else {
+            const geo = getGeoCoordinates(mouseX, mouseY);
+            if (!geo) return;
+            
+            let cellCol = Math.floor((geo.lon - gridMinLon) / (gridCellSizeLon || 0.01));
+            let cellRow = Math.floor((geo.lat - gridMinLat) / (gridCellSizeLat || 0.01));
+            
+            let foundIndex = -1;
+            let minDistance = 14;
+
+            if (cellCol >= 0 && cellCol < gridCols && cellRow >= 0 && cellRow < gridRows) {
+                for (let dx = -2; dx <= 2; dx++) {
+                    for (let dy = -2; dy <= 2; dy++) {
+                        const nc = cellCol + dx;
+                        const nr = cellRow + dy;
+                        if (nc >= 0 && nc < gridCols && nr >= 0 && nr < gridRows) {
+                            const bucket = spatialGrid[nc][nr];
+                            for (let b = 0; b < bucket.length; b++) {
+                                const idx = bucket[b];
+                                const d_lat = parseFloat(rawDataset[idx]['Latitude']);
+                                const d_lon = parseFloat(rawDataset[idx]['Longitude']);
+                                const pos = getCanvasCoordinates(d_lat, d_lon, rawDataset[idx]['Elevation (m)']);
+                                
+                                const dist = Math.sqrt((pos.x - mouseX) ** 2 + (pos.y - mouseY) ** 2);
+                                if (dist < minDistance) {
+                                    minDistance = dist;
+                                    foundIndex = idx;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (hoveredNodeIndex !== foundIndex) {
+                hoveredNodeIndex = foundIndex;
+                if (foundIndex !== -1) {
+                    updateTelemetryDisplay(foundIndex);
+                } else {
+                    resetTelemetryDisplay();
+                }
+                setupCanvasMap();
+            }
+        }
+    });
+
+    canvas.addEventListener("wheel", (e) => {
+        if (!rawDataset || rawDataset.length === 0) return;
+        e.preventDefault();
+        const zoomIntensity = 0.08;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const geoBefore = getGeoCoordinates(mouseX, mouseY);
+        if (!geoBefore) return;
+
+        if (e.deltaY < 0) {
+            mapZoom *= (1.0 + zoomIntensity);
+        } else {
+            mapZoom *= (1.0 - zoomIntensity);
+        }
+        mapZoom = Math.max(0.2, Math.min(30, mapZoom));
+
+        const posAfter = getCanvasCoordinates(geoBefore.lat, geoBefore.lon, rawDataset[hoveredNodeIndex !== -1 ? hoveredNodeIndex : 0]['Elevation (m)']);
+        mapOffsetX += (mouseX - posAfter.x);
+        mapOffsetY += (mouseY - posAfter.y);
+
+        setupCanvasMap();
+    });
 
     btn2d.addEventListener("click", () => {
         btn2d.classList.add("active");
         btn3d.classList.remove("active");
         rotSliderContainer.classList.add("hidden");
         mapProjectionMode = '2d';
-        lastRenderedLayer = ""; // force offscreen rebuild
         setupCanvasMap();
     });
 
@@ -268,14 +551,42 @@ function initProjectionControls() {
         btn2d.classList.remove("active");
         rotSliderContainer.classList.remove("hidden");
         mapProjectionMode = '3d';
-        lastRenderedLayer = ""; // force offscreen rebuild
         setupCanvasMap();
     });
 
     rotSlider.addEventListener("input", (e) => {
-        // Convert degrees to radians
         mapRotationAngle = (parseFloat(e.target.value) * Math.PI) / 180;
-        lastRenderedLayer = ""; // force offscreen rebuild
+        setupCanvasMap();
+    });
+
+    document.getElementById("btn-zoom-in").addEventListener("click", () => {
+        mapZoom *= 1.25;
+        setupCanvasMap();
+    });
+
+    document.getElementById("btn-zoom-out").addEventListener("click", () => {
+        mapZoom *= 0.8;
+        setupCanvasMap();
+    });
+
+    document.getElementById("btn-zoom-reset").addEventListener("click", () => {
+        mapZoom = 1.0;
+        mapOffsetX = 0.0;
+        mapOffsetY = 0.0;
+        setupCanvasMap();
+    });
+
+    document.querySelectorAll('input[name="map-layer"]').forEach(el => {
+        el.addEventListener("change", () => {
+            setupCanvasMap();
+        });
+    });
+
+    document.getElementById("opt-edges").addEventListener("change", () => {
+        setupCanvasMap();
+    });
+
+    document.getElementById("opt-streams").addEventListener("change", () => {
         setupCanvasMap();
     });
 }
@@ -811,22 +1122,16 @@ function updateTelemetryDisplay(idx) {
 // 6. Interactive Canvas Map Rendering (O(N) rendering & offscreen buffering)
 let offscreenCanvas = null;
 let offscreenCtx = null;
-let lastRenderedLayer = "";
-
 function setupCanvasMap() {
-    const originalCanvas = document.getElementById("map-canvas");
+    const canvas = document.getElementById("map-canvas");
     const container = document.getElementById("map-container");
-
-    // Clear old event listeners by replacing the canvas with a clone BEFORE getting the context
-    const canvas = originalCanvas.cloneNode(true);
-    originalCanvas.replaceWith(canvas);
-
+    
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
 
     const ctx = canvas.getContext("2d");
 
-    if (filteredDataset.length === 0) {
+    if (!filteredDataset || filteredDataset.length === 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
         ctx.font = "14px Inter, sans-serif";
@@ -835,7 +1140,7 @@ function setupCanvasMap() {
         return;
     }
 
-    // Find bounding box
+    // Update global map boundaries
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
     filteredDataset.forEach(d => {
         const lat = parseFloat(d['Latitude']) || 0;
@@ -848,82 +1153,11 @@ function setupCanvasMap() {
 
     const latSpan = maxLat - minLat || 0.01;
     const lonSpan = maxLon - minLon || 0.01;
-
-    minLat -= latSpan * 0.06;
-    maxLat += latSpan * 0.06;
-    minLon -= lonSpan * 0.06;
-    maxLon += lonSpan * 0.06;
-
-    // Mathematical Projection (2D Flat vs 3D Isometric)
-    function projectPoint(lat, lon, elevRaw) {
-        // 1. Convert to normalized [0, 1] range relative to bounding box
-        const xNorm = (lon - minLon) / (maxLon - minLon);
-        const yNorm = 1.0 - (lat - minLat) / (maxLat - minLat); // Flip lat so North is up
-
-        // Elevation normalized (0 to 1)
-        const elev = parseFloat(elevRaw) || 971.0;
-        const zNorm = (elev - 971.0) / (3668.0 - 971.0); // max height approx 3668m
-
-        if (mapProjectionMode === '2d') {
-            // Flat 2D mapping
-            return {
-                x: xNorm * canvas.width,
-                y: yNorm * canvas.height
-            };
-        } else {
-            // 3D Isometric Projection
-            // Rotate around Z axis (center is at 0.5, 0.5)
-            const cosR = Math.cos(mapRotationAngle);
-            const sinR = Math.sin(mapRotationAngle);
-
-            const rx = (xNorm - 0.5) * cosR - (yNorm - 0.5) * sinR;
-            const ry = (xNorm - 0.5) * sinR + (yNorm - 0.5) * cosR;
-
-            // Project with tilt (Y axis squashed, Z height offsets Y upwards)
-            const isoX = rx * canvas.width * 0.7 + canvas.width * 0.5;
-            const isoY = (ry * Math.cos(mapTiltAngle) - zNorm * 0.28) * canvas.height * 0.7 + canvas.height * 0.55;
-
-            return { x: isoX, y: isoY };
-        }
-    }
-
-    // Canvas space projection (with zoom and offsets)
-    function getCanvasCoordinates(lat, lon, elev) {
-        const base = projectPoint(lat, lon, elev);
-        return {
-            x: base.x * mapZoom + mapOffsetX,
-            y: base.y * mapZoom + mapOffsetY
-        };
-    }
-
-    // Reverse projection helper (for hover checks, approximated for 2D/3D)
-    function getGeoCoordinates(canvasX, canvasY) {
-        const rawX = (canvasX - mapOffsetX) / mapZoom;
-        const rawY = (canvasY - mapOffsetY) / mapZoom;
-
-        if (mapProjectionMode === '2d') {
-            const lon = (rawX / canvas.width) * (maxLon - minLon) + minLon;
-            const lat = (1.0 - (rawY / canvas.height)) * (maxLat - minLat) + minLat;
-            return { lat, lon };
-        } else {
-            // In 3D isometric, exact back-projection is multi-valued due to elevation (Z),
-            // so we return the center-based approximation to search surrounding grid cells.
-            const cosR = Math.cos(-mapRotationAngle);
-            const sinR = Math.sin(-mapRotationAngle);
-
-            // Unscale and untranslate
-            const rx = (rawX - canvas.width * 0.5) / (canvas.width * 0.7);
-            const ry = (rawY - canvas.height * 0.55) / (canvas.height * 0.7 * Math.cos(mapTiltAngle));
-
-            // Unrotate
-            const xNorm = rx * cosR - ry * sinR + 0.5;
-            const yNorm = rx * sinR + ry * cosR + 0.5;
-
-            const lon = xNorm * (maxLon - minLon) + minLon;
-            const lat = (1.0 - yNorm) * (maxLat - minLat) + minLat;
-            return { lat, lon };
-        }
-    }
+    
+    mapMinLat = minLat - latSpan * 0.06;
+    mapMaxLat = maxLat + latSpan * 0.06;
+    mapMinLon = minLon - lonSpan * 0.06;
+    mapMaxLon = maxLon + lonSpan * 0.06;
 
     // Offscreen Canvas Initialization
     if (!offscreenCanvas || offscreenCanvas.width !== canvas.width || offscreenCanvas.height !== canvas.height) {
@@ -931,24 +1165,65 @@ function setupCanvasMap() {
         offscreenCanvas.width = canvas.width;
         offscreenCanvas.height = canvas.height;
         offscreenCtx = offscreenCanvas.getContext("2d");
-        lastRenderedLayer = "";
     }
+
+    offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
 
     const showEdges = document.getElementById("opt-edges").checked;
     const showStreams = document.getElementById("opt-streams").checked;
     const mapType = document.querySelector('input[name="map-layer"]:checked').value;
 
-    const cacheKey = `${mapType}_${showEdges}_${showStreams}_${mapProjectionMode}_${mapRotationAngle}_${filteredDataset.length}`;
+    const paddingLeft = 65;
+    const paddingBottom = 45;
+    const paddingTop = 25;
+    const paddingRight = 25;
 
-    // Draw static base map to offscreen buffer if settings changed
-    if (lastRenderedLayer !== cacheKey) {
-        offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        offscreenCtx.fillStyle = "#ffffff";
-        offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+    // Draw background
+    offscreenCtx.fillStyle = "#ffffff";
+    offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
 
-        // A. Draw Grid Lines (light background)
-        offscreenCtx.lineWidth = 0.5;
-        offscreenCtx.strokeStyle = "#e5e7eb";
+    // Save and clip for 2D mode so map does not draw over axes margins
+    offscreenCtx.save();
+    if (mapProjectionMode === '2d') {
+        offscreenCtx.beginPath();
+        offscreenCtx.rect(paddingLeft, paddingTop, canvas.width - paddingLeft - paddingRight, canvas.height - paddingTop - paddingBottom);
+        offscreenCtx.clip();
+    }
+
+    // A. Draw Grid Lines (light background)
+    offscreenCtx.lineWidth = 0.5;
+    offscreenCtx.strokeStyle = "#e5e7eb";
+    
+    if (mapProjectionMode === '2d') {
+        // Draw grid lines inside the clipped map area
+        const leftGeo = getGeoCoordinates(paddingLeft, paddingTop);
+        const rightGeo = getGeoCoordinates(canvas.width - paddingRight, paddingTop);
+        const topGeo = getGeoCoordinates(paddingLeft, paddingTop);
+        const bottomGeo = getGeoCoordinates(paddingLeft, canvas.height - paddingBottom);
+        
+        if (leftGeo && rightGeo && topGeo && bottomGeo) {
+            const startLon = Math.floor(leftGeo.lon * 20) / 20;
+            const endLon = Math.ceil(rightGeo.lon * 20) / 20;
+            for (let lon = startLon; lon <= endLon; lon += 0.05) {
+                const p = projectPoint(leftGeo.lat, lon, 1000);
+                offscreenCtx.beginPath();
+                offscreenCtx.moveTo(p.x, paddingTop);
+                offscreenCtx.lineTo(p.x, canvas.height - paddingBottom);
+                offscreenCtx.stroke();
+            }
+            
+            const startLat = Math.floor(bottomGeo.lat * 20) / 20;
+            const endLat = Math.ceil(topGeo.lat * 20) / 20;
+            for (let lat = startLat; lat <= endLat; lat += 0.05) {
+                const p = projectPoint(lat, leftGeo.lon, 1000);
+                offscreenCtx.beginPath();
+                offscreenCtx.moveTo(paddingLeft, p.y);
+                offscreenCtx.lineTo(canvas.width - paddingRight, p.y);
+                offscreenCtx.stroke();
+            }
+        }
+    } else {
+        // 3D mode background grid lines
         for (let x = 50; x < offscreenCanvas.width; x += 100) {
             offscreenCtx.beginPath();
             offscreenCtx.moveTo(x, 0);
@@ -961,110 +1236,248 @@ function setupCanvasMap() {
             offscreenCtx.lineTo(offscreenCanvas.width, y);
             offscreenCtx.stroke();
         }
+    }
 
-        // B. Draw Graph Edges (gray)
-        if (showEdges && graphEdges) {
-            offscreenCtx.lineWidth = 0.4;
-            offscreenCtx.strokeStyle = "rgba(100, 116, 139, 0.12)"; // light gray
+    // B. Draw 3D Terrain grid mesh (3D mode only)
+    if (mapProjectionMode === '3d') {
+        const meshCols = 25;
+        const meshRows = 25;
+        const gridVertices = Array.from({ length: meshCols }, () => Array.from({ length: meshRows }));
+        
+        // 1. Compute all vertex positions
+        for (let c = 0; c < meshCols; c++) {
+            for (let r = 0; r < meshRows; r++) {
+                const lon = mapMinLon + (c / (meshCols - 1)) * (mapMaxLon - mapMinLon);
+                const lat = mapMinLat + (r / (meshRows - 1)) * (mapMaxLat - mapMinLat);
+                const data = getTerrainHeightAndRisk(lon, lat);
+                
+                const proj = projectPoint(lat, lon, data.elev);
+                const projBase = projectPoint(lat, lon, 971.0); 
+                
+                gridVertices[c][r] = {
+                    proj: proj,
+                    projBase: projBase,
+                    elev: data.elev,
+                    risk: data.risk,
+                    lon: lon,
+                    lat: lat
+                };
+            }
+        }
+        
+        const faces = [];
+        
+        // 2. Add terrain grid faces
+        for (let c = 0; c < meshCols - 1; c++) {
+            for (let r = 0; r < meshRows - 1; r++) {
+                const v00 = gridVertices[c][r];
+                const v10 = gridVertices[c+1][r];
+                const v11 = gridVertices[c+1][r+1];
+                const v01 = gridVertices[c][r+1];
+                
+                const avgY = (v00.proj.y + v10.proj.y + v11.proj.y + v01.proj.y) / 4;
+                
+                faces.push({
+                    type: 'terrain',
+                    corners: [v00.proj, v10.proj, v11.proj, v01.proj],
+                    avgY: avgY,
+                    avgElev: (v00.elev + v10.elev + v11.elev + v01.elev) / 4,
+                    avgRisk: (v00.risk + v10.risk + v11.risk + v01.risk) / 4
+                });
+            }
+        }
+        
+        // 3. Add skirt faces (geological block sides)
+        // Bottom skirt
+        for (let c = 0; c < meshCols - 1; c++) {
+            const v0 = gridVertices[c][0];
+            const v1 = gridVertices[c+1][0];
+            const avgY = (v0.proj.y + v1.proj.y + v1.projBase.y + v0.projBase.y) / 4;
+            faces.push({
+                type: 'skirt',
+                corners: [v0.proj, v1.proj, v1.projBase, v0.projBase],
+                avgY: avgY
+            });
+        }
+        // Top skirt
+        for (let c = 0; c < meshCols - 1; c++) {
+            const v0 = gridVertices[c][meshRows - 1];
+            const v1 = gridVertices[c+1][meshRows - 1];
+            const avgY = (v0.proj.y + v1.proj.y + v1.projBase.y + v0.projBase.y) / 4;
+            faces.push({
+                type: 'skirt',
+                corners: [v0.proj, v1.proj, v1.projBase, v0.projBase],
+                avgY: avgY
+            });
+        }
+        // Left skirt
+        for (let r = 0; r < meshRows - 1; r++) {
+            const v0 = gridVertices[0][r];
+            const v1 = gridVertices[0][r+1];
+            const avgY = (v0.proj.y + v1.proj.y + v1.projBase.y + v0.projBase.y) / 4;
+            faces.push({
+                type: 'skirt',
+                corners: [v0.proj, v1.proj, v1.projBase, v0.projBase],
+                avgY: avgY
+            });
+        }
+        // Right skirt
+        for (let r = 0; r < meshRows - 1; r++) {
+            const v0 = gridVertices[meshCols - 1][r];
+            const v1 = gridVertices[meshCols - 1][r+1];
+            const avgY = (v0.proj.y + v1.proj.y + v1.projBase.y + v0.projBase.y) / 4;
+            faces.push({
+                type: 'skirt',
+                corners: [v0.proj, v1.proj, v1.projBase, v0.projBase],
+                avgY: avgY
+            });
+        }
+        
+        // 4. Sort faces back-to-front
+        faces.sort((a, b) => a.avgY - b.avgY);
+        
+        // 5. Draw faces
+        faces.forEach(face => {
+            offscreenCtx.beginPath();
+            offscreenCtx.moveTo(face.corners[0].x, face.corners[0].y);
+            for (let i = 1; i < face.corners.length; i++) {
+                offscreenCtx.lineTo(face.corners[i].x, face.corners[i].y);
+            }
+            offscreenCtx.closePath();
+            
+            if (face.type === 'skirt') {
+                offscreenCtx.fillStyle = "rgba(71, 85, 105, 0.85)"; 
+                offscreenCtx.fill();
+                offscreenCtx.strokeStyle = "rgba(51, 65, 85, 0.4)";
+                offscreenCtx.lineWidth = 0.5;
+                offscreenCtx.stroke();
+            } else {
+                let color = "";
+                if (mapType === "risk") {
+                    if (face.avgRisk > 0.71) {
+                        color = "rgba(239, 68, 68, 0.75)"; 
+                    } else if (face.avgRisk > 0.25) {
+                        color = "rgba(249, 115, 22, 0.75)"; 
+                    } else {
+                        color = "rgba(34, 197, 94, 0.75)"; 
+                    }
+                } else if (mapType === "elevation") {
+                    const normElev = (face.avgElev - 971) / (3668 - 971);
+                    color = `rgba(22, 101, 52, ${0.15 + normElev * 0.85})`;
+                } else if (mapType === "ndvi") {
+                    color = `rgba(5, 150, 105, 0.65)`;
+                } else if (mapType === "rainfall") {
+                    color = `rgba(37, 99, 235, 0.65)`;
+                }
+                
+                offscreenCtx.fillStyle = color;
+                offscreenCtx.fill();
+                
+                offscreenCtx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+                offscreenCtx.lineWidth = 0.5;
+                offscreenCtx.stroke();
+            }
+        });
+    }
 
-            const activeSet = new Set(filteredDataset.map(d => d._rawIndex));
+    // C. Draw Graph Edges (2D only)
+    if (showEdges && graphEdges && mapProjectionMode === '2d') {
+        offscreenCtx.lineWidth = 0.4;
+        offscreenCtx.strokeStyle = "rgba(100, 116, 139, 0.12)"; // light gray
+        
+        const activeSet = new Set(filteredDataset.map(d => d._rawIndex));
+        
+        graphEdges.forEach(([u, v]) => {
+            if (u === v) return;
+            if (!activeSet.has(u) || !activeSet.has(v)) return;
 
-            graphEdges.forEach(([u, v]) => {
-                if (u === v) return;
-                if (!activeSet.has(u) || !activeSet.has(v)) return;
+            const p_u = projectPoint(parseFloat(rawDataset[u]['Latitude']), parseFloat(rawDataset[u]['Longitude']), rawDataset[u]['Elevation (m)']);
+            const p_v = projectPoint(parseFloat(rawDataset[v]['Latitude']), parseFloat(rawDataset[v]['Longitude']), rawDataset[v]['Elevation (m)']);
+            
+            offscreenCtx.beginPath();
+            offscreenCtx.moveTo(p_u.x, p_u.y);
+            offscreenCtx.lineTo(p_v.x, p_v.y);
+            offscreenCtx.stroke();
+        });
+    }
 
+    // D. Draw Water Streams (SPI Overlay)
+    if (showStreams && graphEdges) {
+        offscreenCtx.lineWidth = mapProjectionMode === '2d' ? 0.9 : 1.5;
+        offscreenCtx.strokeStyle = "rgba(59, 130, 246, 0.65)"; // Blue streams
+        
+        const activeSet = new Set(filteredDataset.map(d => d._rawIndex));
+        
+        graphEdges.forEach(([u, v]) => {
+            if (u === v) return;
+            if (!activeSet.has(u) || !activeSet.has(v)) return;
+            
+            const spi_u = parseFloat(rawDataset[u]['SPI']) || 0;
+            const spi_v = parseFloat(rawDataset[v]['SPI']) || 0;
+
+            if (spi_u > 0.003 || spi_v > 0.003) {
                 const p_u = projectPoint(parseFloat(rawDataset[u]['Latitude']), parseFloat(rawDataset[u]['Longitude']), rawDataset[u]['Elevation (m)']);
                 const p_v = projectPoint(parseFloat(rawDataset[v]['Latitude']), parseFloat(rawDataset[v]['Longitude']), rawDataset[v]['Elevation (m)']);
-
                 offscreenCtx.beginPath();
                 offscreenCtx.moveTo(p_u.x, p_u.y);
                 offscreenCtx.lineTo(p_v.x, p_v.y);
                 offscreenCtx.stroke();
-            });
-        }
-
-        // C. Draw Water Streams (High SPI -> Blue Lines)
-        if (showStreams && graphEdges) {
-            offscreenCtx.lineWidth = 0.9;
-            offscreenCtx.strokeStyle = "rgba(59, 130, 246, 0.35)"; // Blue streams
-
-            const activeSet = new Set(filteredDataset.map(d => d._rawIndex));
-
-            graphEdges.forEach(([u, v]) => {
-                if (u === v) return;
-                if (!activeSet.has(u) || !activeSet.has(v)) return;
-
-                // If either node has a high Stream Power Index (SPI), we draw it as a water stream!
-                // SPI in rawDataset is unscaled. We check if raw SPI > 0.003
-                const spi_u = parseFloat(rawDataset[u]['SPI']) || 0;
-                const spi_v = parseFloat(rawDataset[v]['SPI']) || 0;
-
-                if (spi_u > 0.003 || spi_v > 0.003) {
-                    const p_u = projectPoint(parseFloat(rawDataset[u]['Latitude']), parseFloat(rawDataset[u]['Longitude']), rawDataset[u]['Elevation (m)']);
-                    const p_v = projectPoint(parseFloat(rawDataset[v]['Latitude']), parseFloat(rawDataset[v]['Longitude']), rawDataset[v]['Elevation (m)']);
-                    offscreenCtx.beginPath();
-                    offscreenCtx.moveTo(p_u.x, p_u.y);
-                    offscreenCtx.lineTo(p_v.x, p_v.y);
-                    offscreenCtx.stroke();
-                }
-            });
-        }
-
-        // D. Draw Nodes
-        filteredDataset.forEach((d) => {
-            const rawIdx = d._rawIndex;
-            const lat = parseFloat(d['Latitude']);
-            const lon = parseFloat(d['Longitude']);
-            const pos = projectPoint(lat, lon, d['Elevation (m)']);
-
-            let color = "";
-            if (mapType === "risk") {
-                const prob = predictions[rawIdx];
-                if (prob > 0.71) {
-                    color = "rgba(239, 68, 68, 0.85)"; // Alert Red
-                } else if (prob > 0.25) {
-                    color = "rgba(249, 115, 22, 0.85)"; // Orange
-                } else {
-                    color = "rgba(34, 197, 94, 0.85)"; // Mint Green
-                }
-            } else if (mapType === "elevation") {
-                const elevNorm = scaledFeatures[rawIdx][1];
-                color = `rgba(22, 101, 52, ${0.15 + elevNorm * 0.85})`; // Dark green elevation gradients
-            } else if (mapType === "ndvi") {
-                const ndviNorm = scaledFeatures[rawIdx][4];
-                color = `rgba(5, 150, 105, ${0.1 + ndviNorm * 0.9})`; // Vegetation cover green
-            } else if (mapType === "rainfall") {
-                const rainNorm = scaledFeatures[rawIdx][3];
-                color = `rgba(37, 99, 235, ${0.15 + rainNorm * 0.85})`; // Precipitation Blue
             }
-
-            offscreenCtx.beginPath();
-            offscreenCtx.arc(pos.x, pos.y, 2.5, 0, 2 * Math.PI);
-            offscreenCtx.fillStyle = color;
-            offscreenCtx.fill();
         });
-
-        lastRenderedLayer = cacheKey;
     }
 
-    // Main Draw Function
+    // E. Draw Nodes
+    filteredDataset.forEach((d) => {
+        const rawIdx = d._rawIndex;
+        const lat = parseFloat(d['Latitude']);
+        const lon = parseFloat(d['Longitude']);
+        const pos = projectPoint(lat, lon, d['Elevation (m)']);
+
+        let color = "";
+        if (mapType === "risk") {
+            const prob = predictions[rawIdx];
+            if (prob > 0.71) {
+                color = "rgba(239, 68, 68, 0.85)"; // Alert Red
+            } else if (prob > 0.25) {
+                color = "rgba(249, 115, 22, 0.85)"; // Orange
+            } else {
+                color = "rgba(34, 197, 94, 0.85)"; // Mint Green
+            }
+        } else if (mapType === "elevation") {
+            const elevNorm = scaledFeatures[rawIdx][1];
+            color = `rgba(22, 101, 52, ${0.15 + elevNorm * 0.85})`;
+        } else if (mapType === "ndvi") {
+            const ndviNorm = scaledFeatures[rawIdx][4];
+            color = `rgba(5, 150, 105, ${0.1 + ndviNorm * 0.9})`;
+        } else if (mapType === "rainfall") {
+            const rainNorm = scaledFeatures[rawIdx][3];
+            color = `rgba(37, 99, 235, ${0.15 + rainNorm * 0.85})`;
+        }
+
+        offscreenCtx.beginPath();
+        offscreenCtx.arc(pos.x, pos.y, mapProjectionMode === '2d' ? 2.5 : 3.0, 0, 2 * Math.PI);
+        offscreenCtx.fillStyle = color;
+        offscreenCtx.fill();
+        
+        offscreenCtx.strokeStyle = "rgba(0, 0, 0, 0.15)";
+        offscreenCtx.lineWidth = 0.5;
+        offscreenCtx.stroke();
+    });
+
+    offscreenCtx.restore(); // Restore clip context
+
+    // Draw frame and axes inside the main drawMap function
     function drawMap() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(offscreenCanvas, 0, 0);
 
-        // 1. Draw cached background offscreen canvas
-        ctx.drawImage(
-            offscreenCanvas,
-            0, 0, offscreenCanvas.width, offscreenCanvas.height,
-            mapOffsetX, mapOffsetY, offscreenCanvas.width * mapZoom, offscreenCanvas.height * mapZoom
-        );
-
-        // 2. Draw highlighted node if hovering
+        // Highlight ring
         if (hoveredNodeIndex !== -1 && hoveredNodeIndex < rawDataset.length) {
             const d = rawDataset[hoveredNodeIndex];
             const prob = predictions[hoveredNodeIndex];
             const lat = parseFloat(d['Latitude']);
             const lon = parseFloat(d['Longitude']);
-
+            
             const pos = getCanvasCoordinates(lat, lon, d['Elevation (m)']);
 
             let color = "var(--accent-mint)";
@@ -1079,122 +1492,18 @@ function setupCanvasMap() {
             ctx.strokeStyle = "#ffffff";
             ctx.stroke();
 
-            // Hover tooltip ring
             ctx.beginPath();
             ctx.arc(pos.x, pos.y, 14, 0, 2 * Math.PI);
             ctx.lineWidth = 1.0;
             ctx.strokeStyle = color;
             ctx.stroke();
         }
+
+        // Draw Axes in 2D mode
+        if (mapProjectionMode === '2d') {
+            drawAxes(ctx, canvas.width, canvas.height, paddingLeft, paddingBottom, paddingTop, paddingRight, minLat, maxLat, minLon, maxLon);
+        }
     }
-
-    window.triggerMapRedraw = drawMap;
-
-    // Listeners
-    canvas.addEventListener("mousedown", (e) => {
-        isDraggingMap = true;
-        dragStartX = e.clientX - mapOffsetX;
-        dragStartY = e.clientY - mapOffsetY;
-    });
-
-    window.addEventListener("mouseup", () => {
-        isDraggingMap = false;
-    });
-
-    canvas.addEventListener("mousemove", (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        if (isDraggingMap) {
-            mapOffsetX = e.clientX - dragStartX;
-            mapOffsetY = e.clientY - dragStartY;
-            drawMap();
-        } else {
-            // fast grid hover search
-            const geo = getGeoCoordinates(mouseX, mouseY);
-
-            let cellCol = Math.floor((geo.lon - gridMinLon) / gridCellSizeLon);
-            let cellRow = Math.floor((geo.lat - gridMinLat) / gridCellSizeLat);
-
-            let foundIndex = -1;
-            let minDistance = 14;
-
-            if (cellCol >= 0 && cellCol < gridCols && cellRow >= 0 && cellRow < gridRows) {
-                for (let dx = -2; dx <= 2; dx++) {
-                    for (let dy = -2; dy <= 2; dy++) {
-                        const nc = cellCol + dx;
-                        const nr = cellRow + dy;
-                        if (nc >= 0 && nc < gridCols && nr >= 0 && nr < gridRows) {
-                            const bucket = spatialGrid[nc][nr];
-                            for (let b = 0; b < bucket.length; b++) {
-                                const idx = bucket[b];
-                                const d_lat = parseFloat(rawDataset[idx]['Latitude']);
-                                const d_lon = parseFloat(rawDataset[idx]['Longitude']);
-                                const pos = getCanvasCoordinates(d_lat, d_lon, rawDataset[idx]['Elevation (m)']);
-
-                                const dist = Math.sqrt((pos.x - mouseX) ** 2 + (pos.y - mouseY) ** 2);
-                                if (dist < minDistance) {
-                                    minDistance = dist;
-                                    foundIndex = idx;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (hoveredNodeIndex !== foundIndex) {
-                hoveredNodeIndex = foundIndex;
-                if (foundIndex !== -1) {
-                    updateTelemetryDisplay(foundIndex);
-                } else {
-                    resetTelemetryDisplay();
-                }
-                drawMap();
-            }
-        }
-    });
-
-    canvas.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        const zoomIntensity = 0.08;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const geoBefore = getGeoCoordinates(mouseX, mouseY);
-
-        if (e.deltaY < 0) {
-            mapZoom *= (1.0 + zoomIntensity);
-        } else {
-            mapZoom *= (1.0 - zoomIntensity);
-        }
-        mapZoom = Math.max(0.4, Math.min(30, mapZoom));
-
-        const posAfter = getCanvasCoordinates(geoBefore.lat, geoBefore.lon, rawDataset[hoveredNodeIndex !== -1 ? hoveredNodeIndex : 0]['Elevation (m)']);
-        mapOffsetX += (mouseX - posAfter.x);
-        mapOffsetY += (mouseY - posAfter.y);
-
-        drawMap();
-    });
-
-    document.querySelectorAll('input[name="map-layer"]').forEach(el => {
-        el.addEventListener("change", () => {
-            lastRenderedLayer = "";
-            setupCanvasMap();
-        });
-    });
-
-    document.getElementById("opt-edges").addEventListener("change", () => {
-        lastRenderedLayer = "";
-        setupCanvasMap();
-    });
-
-    document.getElementById("opt-streams").addEventListener("change", () => {
-        lastRenderedLayer = "";
-        setupCanvasMap();
-    });
 
     drawMap();
 }
