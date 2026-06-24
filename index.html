@@ -1,719 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion in Ethiopia</title>
-
+    <title>Ethiopia Soil Erosion Predictor AI - GCN Dashboard</title>
+    
     <!-- Primary SEO Meta Tags -->
-    <meta name="title"
-        content="Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion in Ethiopia">
-    <meta name="description"
-        content="A novel Semi-Supervised Spatial Graph Convolutional Network (GCN) architecture to accurately model and predict soil susceptibility across five Woredas in the Amhara Region, Ethiopia.">
-    <meta name="keywords"
-        content="Graph Convolutional Networks, AI, Soil Erosion, Spatial Analysis, Semi-Supervised Learning, Geomorphology, Ethiopia, Machine Learning, Geospatial Intelligence">
-    <meta name="author" content="Surafel Asfawosen Haile">
-
-    <!-- Open Graph / LinkedIn / Facebook -->
-    <meta property="og:type" content="article">
-    <meta property="og:title" content="Semi-Supervised Spatial GCN for Soil Erosion Detection">
-    <meta property="og:description"
-        content="A novel AI architecture for modeling and predicting continuous kinetic land degradation in the Ethiopian Highlands.">
-    <meta property="og:image" content="assets/plot_11.png">
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="Spatial GCN for Soil Erosion Detection in Ethiopia">
-    <meta property="twitter:description"
-        content="A novel AI architecture utilizing Graph Neural Networks to map soil erosion risks across the Amhara region.">
-    <meta property="twitter:image" content="assets/plot_11.png">
-
-    <!-- Schema.org JSON-LD structured data for Google Scholar / Search Engines -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "ScholarlyArticle",
-      "headline": "Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion in Ethiopia",
-      "author": {
-        "@type": "Person",
-        "name": "Surafel Asfawosen Haile",
-        "jobTitle": "Data Scientist | Independent Researcher | Geomatics and AI Specialist"
-      },
-      "abstract": "Soil erosion is a critical kinetic land degradation process posing severe threats to agricultural sustainability and structural stability, particularly within the Ethiopian Highlands. Traditional detection methodologies frequently rely on isolated single-point analyses or empirical equations like the Revised Universal Soil Loss Equation (RUSLE), which fail to capture the multidimensional, topological flow of kinetic energy and hydrological shear stress. This study proposes a novel Semi-Supervised Spatial Graph Convolutional Network (GCN) architecture to accurately model and predict soil susceptibility across five Woredas in the Amhara Region.",
-      "keywords": "Graph Convolutional Networks, Soil Erosion, Spatial Analysis, Semi-Supervised Learning, Geomorphology, Ethiopia"
-    }
-    </script>
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;600;700&display=swap');
-
-        body {
-            font-family: 'Crimson Pro', serif;
-            background-color: #f4f5f7;
-            color: #111827;
-            line-height: 1.8;
-            font-size: 1.15rem;
-        }
-
-        h1,
-        h2,
-        h3,
-        h4,
-        .sans-font {
-            font-family: 'Inter', sans-serif;
-        }
-
-        .paper-container {
-            background-color: white;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            border: 1px solid #eaeaea;
-        }
-
-        .abstract-section {
-            margin: 3rem auto 4rem auto;
-            max-width: 88%;
-            border-top: 1px solid #000;
-            border-bottom: 1px solid #000;
-            padding: 2.5rem 0;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .abstract-title {
-            font-family: 'Inter', sans-serif;
-            font-size: 1.2rem;
-            font-weight: 700;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 1.5rem;
-            color: #111827;
-        }
-
-        .figure-caption {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-            color: #555;
-            text-align: center;
-            margin-top: 1rem;
-            font-style: italic;
-        }
-
-        section {
-            margin-bottom: 4rem;
-        }
-
-        h2 {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: #111827;
-            margin-top: 3.5rem;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid #d1d5db;
-            padding-bottom: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        h3 {
-            font-size: 1.35rem;
-            font-weight: 600;
-            color: #1f2937;
-            margin-top: 3.5rem;
-            margin-bottom: 2rem;
-        }
-
-        h4 {
-            font-size: 1.15rem;
-            font-weight: 600;
-            color: #1f2937;
-            margin-top: 3rem;
-            margin-bottom: 1.5rem;
-        }
-
-        p {
-            margin-bottom: 2rem;
-            text-align: justify;
-        }
-
-        ul,
-        ol {
-            margin-bottom: 1.5rem;
-            padding-left: 1.5rem;
-        }
-
-        li {
-            margin-bottom: 0.5rem;
-        }
-
-        .equation-block {
-            overflow-x: auto;
-            margin: 1.5rem 0;
-            padding: 1rem 0;
-        }
-
-        .references p {
-            margin-bottom: 0.75rem;
-            padding-left: 2rem;
-            text-indent: -2rem;
-            text-align: left;
-            font-size: 0.95rem;
-        }
-    </style>
+    <meta name="title" content="Ethiopia Soil Erosion Predictor AI - GCN Spatial Dashboard">
+    <meta name="description" content="An advanced environmental dashboard running client-side Graph Convolutional Networks (GCN) to predict soil erosion risks across Amhara, Ethiopia. Upload CSV or Excel files for instant spatial intelligence.">
+    <meta name="keywords" content="Jupyter, GCN, Soil Erosion, Amhara, Ethiopia, Spatial Analysis, Machine Learning, Telemetry, GeoAI">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="dashboard.css">
+    
+    <!-- External JS Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+<body>
 
-<body class="antialiased py-12">
-
-    <article class="max-w-4xl mx-auto paper-container rounded-sm p-10 md:p-20">
-
-        <!-- Header -->
-        <header class="text-center mb-12">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 leading-tight mb-6">
-                Semi-Supervised Spatial Graph Convolutional Networks for Early Detection of Soil Erosion in Ethiopia
-            </h1>
-            <div class="mb-6">
-                <h2 class="text-xl font-semibold text-gray-800 border-none pb-0 mb-1 normal-case tracking-normal">
-                    Surafel Asfawosen Haile</h2>
-                <p class="text-md text-gray-600 mb-0 italic">Data Scientist | Independent Researcher | Geomatics and AI
-                    Specialist</p>
-                <div class="flex justify-center space-x-4 text-sm text-indigo-600 mt-2">
-                    <a href="mailto:surafelasfawwosen@gmail.com" class="hover:underline">surafelasfawwosen@gmail.com</a>
-                    <span class="text-gray-400">|</span>
-                    <a href="https://www.linkedin.com/in/surafel-asfawosen-518534363" class="hover:underline"
-                        target="_blank">LinkedIn</a>
+    <!-- Header & Navigation -->
+    <header>
+        <div class="header-container">
+            <div class="brand">
+                <div class="logo-icon">🛰️</div>
+                <div>
+                    <h1 class="brand-title">ETHIOPIA SOIL EROSION PREDICTOR</h1>
+                    <div class="brand-subtitle">Geospatial Graph Neural Network Dashboard</div>
                 </div>
             </div>
-        </header>
-
-        <!-- Abstract -->
-        <div class="abstract-section">
-            <div class="abstract-title">Abstract</div>
-            <p class="mb-6 text-gray-800 text-justify font-medium leading-relaxed">
-                Soil erosion is a critical kinetic land degradation process posing severe threats to agricultural
-                sustainability and structural stability, particularly within the Ethiopian Highlands. Traditional
-                detection methodologies frequently rely on isolated single-point analyses or empirical equations like
-                the Revised Universal Soil Loss Equation (RUSLE), which fail to capture the multidimensional,
-                topological flow of kinetic energy and hydrological shear stress. This study proposes a novel
-                Semi-Supervised Spatial Graph Convolutional Network (GCN) architecture to accurately model and predict
-                soil susceptibility across five Woredas in the Amhara Region. By converting 255,000 geospatial satellite
-                pixels into a continuous mathematical mesh utilizing a cKDTree algorithm, the model learns complex
-                geomorphological interactions spanning over two million structural edges. Utilizing a semi-supervised
-                learning paradigm, the GCN is anchored strictly by the top and bottom 5% geometric extremes as
-                ground-truth labels, allowing the network to infer the remaining 90% of the terrain autonomously. The
-                resulting architecture correctly identifies high-risk zones, overcoming anomalies such as the Ethiopian
-                NDVI Paradox, and achieves a generalization score of 93.89% across isolated Woreda validations. The
-                findings demonstrate that topological machine learning can synthesize precise geospatial intelligence
-                critical for disaster prevention and targeted resource allocation.
-            </p>
-            <p class="text-[0.95rem] font-semibold text-gray-800 mb-0 text-justify">
-                <em class="font-bold">Keywords:</em> Graph Convolutional Networks, Soil Erosion, Spatial Analysis,
-                Semi-Supervised Learning, Geomorphology, Ethiopia
-            </p>
-        </div>
-
-        <section>
-            <h2>1. Introduction</h2>
-            <p>
-                Soil erosion remains one of the most pervasive geological challenges globally, profoundly impacting
-                agricultural productivity, hydrological cycles, and infrastructural integrity. In the Highlands of
-                Ethiopia, this phenomenon is aggressively amplified by a combination of extreme topographic gradients,
-                intense seasonal precipitation, and highly vulnerable soil compositions.
-            </p>
-            <p>
-                Historically, geospatial risk assessment has relied upon point-based mathematical models such as the
-                Revised Universal Soil Loss Equation (RUSLE). However, these approaches inherently treat geospatial data
-                as isolated entities. Single-point analysis mathematically struggles to represent fundamental laws of
-                physics, such as hydrologic flow and gravity, because it cannot perceive spatial interaction. Water
-                cascading down a sheer cliff of solid bedrock will yield minimal erosion, whereas the identical kinetic
-                energy transferred onto a gentle slope of loose sand will cause immediate topological collapse. To
-                bridge the critical gap between localized metrics and continuous physical cascades, this research
-                introduces a Semi-Supervised Spatial Graph Convolutional Network (GCN) framework.
-            </p>
-        </section>
-
-        <section>
-            <h2>2. Related Work</h2>
-            <p>
-                Previous attempts to solve geospatial erosion prediction have primarily focused on two avenues: deep
-                learning auto-encoders coupled with Deep Embedding Clustering, and pure mathematical modeling via the
-                Universal Soil Loss Equation (USLE/RUSLE). While neural networks excel at extracting non-linear features
-                from isolated satellite imagery, standard architectures (e.g., CNNs) inherently expect rigid, grid-like
-                image structures. They falter when analyzing the continuous, non-Euclidean nature of real-world
-                topography.
-            </p>
-            <p>
-                Conversely, standard GIS methodologies heavily utilize Inverse Distance Weighting and spatial
-                interpolation. While mathematically sound, they lack the predictive power to dynamically adapt to
-                complex, multi-variable interactions like the relationship between biological root systems (NDVI) and
-                catastrophic gravitational shear stress. The integration of Graph Neural Networks into geospatial
-                science allows for the mathematical modeling of "Message-Passing," directly simulating kinetic energy
-                transfer across geographic space [1, 2].
-            </p>
-        </section>
-
-        <section>
-            <h2>3. Data and Study Area</h2>
-            <p>
-                The research was conducted across five highly susceptible Woredas located within the Amhara Region of
-                Ethiopia: Ankober, Kewet, Menjar, Menze Gera, and Merabete. This specific geography provides an ideal
-                testing ground due to its extreme variance in elevation, climate, and soil composition.
-            </p>
-            <p>
-                The primary dataset comprises 255,029 individual geospatial coordinates derived from multispectral
-                satellite telemetry and Digital Elevation Models (DEM). Features include Topographic Slope, Stream Power
-                Index (SPI), Normalized Difference Vegetation Index (NDVI), Aspect, Rainfall concentration, and UN Food
-                and Agriculture Organization (FAO) soil classifications.
-            </p>
-        </section>
-
-        <section>
-            <h2>4. Methodology</h2>
-
-            <h3>4.1. Geotechnical Feature Engineering</h3>
-            <p>
-                Raw satellite datasets provided geological soil properties as textual categories based on the FAO
-                classification system. To facilitate neural backpropagation, these categorical variables were engineered
-                into a continuous numerical K-Factor (Soil Erodibility Factor). Low K-Factor soils (e.g., Clays,
-                Bedrock) possess high molecular cohesion and actively resist hydraulic shear stress. High K-Factor soils
-                (e.g., Sands, Silts) lack natural binding agents and detach rapidly under kinetic rain impact.
-            </p>
-            <p>
-                Additionally, Topographic Aspect (measured continuously from 0° to 360°) presents a geometric paradox
-                for neural networks due to the false numerical jump from 359° to 0°. This was resolved by mathematically
-                decomposing the Aspect into continuous \(Sine\) and \(Cosine\) coordinates. Furthermore, all physical
-                features were stabilized using Min-Max scaling to ensure smooth gradient descent during training.
-            </p>
-
-            <h3>4.2. Semi-Supervised Target Variable Generation</h3>
-            <p>
-                A primary obstacle in geospatial machine learning is the absence of expert ground-truth labels for vast
-                territories. To resolve this, a Semi-Supervised Learning strategy was adopted. Physical "Anchor Seeds"
-                were generated utilizing a proxy derivation of the RUSLE formula:
-            </p>
-            <div class="equation-block text-center text-lg">
-                $$ Risk\_Score = \frac{Slope \times Rainfall \times K\_Factor}{NDVI + \epsilon} $$
-            </div>
-            <p>
-                Instead of imposing an arbitrary mathematical threshold across the entire dataset, only the absolute
-                geometric extremes were extracted as training targets. The top 5% of calculated nodes were labeled as
-                Severe Risk (Label 1), representing mathematically indisputable danger zones. The bottom 5% were labeled
-                as Safe (Label 0), representing flat, highly vegetated plains. The middle 90% were masked as Unknown
-                (Label -1). The GCN was explicitly structured to learn the physical laws exclusively from these 10%
-                Anchor Nodes.
-            </p>
-
-            <h3>4.3. Spatial Graph Construction</h3>
-            <p>
-                To simulate continuous kinetic energy, the isolated GPS pixels were interconnected into a topological
-                graph \( \mathcal{G} = (\mathcal{V}, \mathcal{E}) \). Utilizing a cKDTree algorithm, the 8 nearest
-                spatial neighbors for every node were rapidly located, constructing over 2,040,232 logical edges. This
-                computational mesh acts as the base "mind" of the AI, permitting localized threat metrics (like a
-                landslide originating uphill) to flow down the graph edges onto adjacent nodes.
-            </p>
-            <figure class="my-10">
-                <img src="assets/plot_2.png" alt="Graph Construction"
-                    class="w-4/5 mx-auto rounded-lg shadow-xl border border-gray-200">
-                <figcaption class="figure-caption">Figure 1: The Computational Mesh representing the spatial graph
-                    \(\mathcal{G}\).</figcaption>
-            </figure>
-
-            <h3>4.4. Multi-Dimensional Topographic Abstraction</h3>
-            <p>
-                To successfully predict soil erosion, the Neural Network mathematically reconstructs the physical world
-                inside its memory. The following 3D projections visually demonstrate how the GCN abstracts and processes
-                the topographic reality:
-            </p>
-
-            <h4 class="font-bold text-xl text-gray-800 mt-10 mb-4">A. 3D Topological GCN Mesh (Stream Power Index Flow)
-            </h4>
-            <p>
-                This visualization demonstrates the foundational way the AI perceives hydrological physics across the
-                landscape. Rather than viewing the map as a flat, two-dimensional image, the network mathematically
-                elevates each node based on its physical steepness, essentially constructing a complete 3D digital twin
-                of the Amhara terrain inside its memory. The vivid color gradient (ranging from cyan to magenta) maps
-                the Stream Power Index (SPI). By visualizing the SPI over the 3D mesh, we can explicitly see how the AI
-                identifies deep ravines and concentrated corridors where kinetic water flow accelerates, creating
-                localized hydraulic stress.
-            </p>
-            <figure class="mt-6 mb-12"><img src="assets/plot_3.png" alt="SPI Flow"
-                    class="w-full rounded shadow-lg border"></figure>
-
-            <h4 class="font-bold text-xl text-gray-800 mt-10 mb-4">B. Localized GCN Target Interface (Water Cascades)
-            </h4>
-            <p>
-                This localized cross-section isolates the exact mechanism of Spatial Message Passing, which allows the
-                AI to absorb baseline RUSLE data dynamically across space. In traditional physics, water and soil do not
-                stay in one place; they cascade downwards. The highlighted edges in this graph actively simulate these
-                physical water cascades. Instead of calculating risk in isolation, the GCN dynamically absorbs the raw
-                RUSLE metrics (Slope, Rainfall, Vegetation) from all of its topological neighbors. If a node sits below
-                a highly erodible cliff experiencing intense rain, the AI 'passes the message' of that incoming danger
-                down the graph edges, actively transferring the RUSLE kinetic threat to the nodes below.
-            </p>
-            <figure class="mt-6 mb-12"><img src="assets/plot_5.png" alt="Water Cascades"
-                    class="w-full rounded shadow-lg border"></figure>
-
-            <h4 class="font-bold text-xl text-gray-800 mt-10 mb-4">C. Complete GCN State (Multi-Dimensional Magnitude)
-            </h4>
-            <p>
-                The final projection represents the fully synthesized, multi-dimensional risk magnitude after the GCN
-                has analyzed all interconnected geographic features. The AI does not simply look at steepness or
-                rainfall; it analyzes the whole feature set simultaneously. For example, it evaluates the precise FAO
-                soil erodibility factor (K-Factor) to understand if the ground is made of solid bedrock or loose sand,
-                while simultaneously factoring in the exact angles of the topography and the root-binding strength of
-                local vegetation. By mapping this continuous, fully-processed risk spectrum over the 3D topographic
-                mesh, the Neural Network correctly isolates catastrophic risk zones—visually represented by the
-                high-intensity magenta peaks—proving its deep understanding of complex geomorphology.
-            </p>
-            <figure class="mt-6 mb-12"><img src="assets/plot_6.png" alt="RUSLE Magnitude"
-                    class="w-full rounded shadow-lg border"></figure>
-
-            <h3>4.5. Graph Convolutional Network Architecture</h3>
-            <p>
-                The core intelligence engine utilizes a localized message-passing architecture based on the PyTorch
-                Geometric framework. The hidden node representation \( h_i^{(l+1)} \) for a given node \( i \) at layer
-                \( l+1 \) is mathematically updated by aggregating features from its localized neighborhood \(
-                \mathcal{N}(i) \):
-            </p>
-            <div class="equation-block text-center text-lg">
-                $$ h_i^{(l+1)} = \sigma \left( \sum_{j \in \mathcal{N}(i) \cup \{i\}} \frac{1}{\sqrt{\hat{d}_i
-                \hat{d}_j}} W^{(l)} h_j^{(l)} \right) $$
-            </div>
-            <p>
-                The initial convolutional layer projects the geological tensor into a 64-dimensional hidden space,
-                followed by Non-Linear Rectification (ReLU) to capture exponential physical interactions. A Dropout
-                regularization threshold of 30% acts to prevent spatial overfitting. The network converges using an
-                Adaptive Moment Estimation (Adam) optimizer paired with a Negative Log-Likelihood Loss function
-                calculated exclusively against the Anchor nodes, equipped with an asymptotic Early Stopping trigger.
-            </p>
-
-            <h3>4.6. Experimental Setup and Reproducibility</h3>
-            <p>
-                A profound challenge in this research was the entirely unsupervised nature of the raw dataset; the
-                satellite telemetry contained no pre-existing ground-truth targets for soil erosion. This mandated the
-                semi-supervised anchor-seed methodology. The raw data utilized a 30-meter spatial resolution, ensuring
-                topological granularity without overwhelming memory constraints.
-            </p>
-            <p>
-                The model was implemented using PyTorch Geometric. Optimization was driven by the Adam optimizer with a
-                learning rate set to \( 1 \times 10^{-3} \) and a weight decay of \( 5 \times 10^{-4} \) to prevent
-                overfitting. The network was trained for a maximum of 500 epochs with an asymptotic Early Stopping
-                patience of 50 epochs based on the validation loss of the Anchor nodes. All computations were executed
-                on an NVIDIA RTX 3090 GPU, with complete spatial graph inference executing in under 4.2 seconds, proving
-                the model's high efficiency for real-time disaster monitoring.
-            </p>
-        </section>
-
-        <section>
-            <h2>5. Results and Discussion</h2>
-
-            <h3>5.1. Performance Validation</h3>
-            <p>
-                To empirically verify that the model successfully learned universal laws of topographic physics—rather
-                than merely memorizing localized terrain—a Group K-Fold cross-validation strategy was deployed. The
-                groups were rigidly defined by Woreda borders. During each iteration, an entire Woreda was completely
-                withheld from the training phase, forcing the AI to conduct blind inference on unseen topography.
-            </p>
-            <p>
-                The architecture achieved an exceptional Generalization Score of 93.89%. Analysis of specific domain
-                shifts (e.g., the Kewet Woreda, which exhibited a moderate drop to 84% due to highly unique local
-                topography) proved the fundamental stability of the topological extrapolation process.
-            </p>
-            <figure class="my-10">
-                <img src="assets/plot_12.png" alt="K-Fold Stats" class="w-3/4 mx-auto rounded shadow-lg border">
-                <figcaption class="figure-caption">Figure 2: Group K-Fold Cross Validation statistics across target
-                    Woredas.</figcaption>
-            </figure>
-
-            <h3>5.2. Comparative Baselines: The Pixel-Wise Illusion</h3>
-            <p>
-                Because the raw dataset entirely lacked a target variable, initial attempts in previous studies utilized fully unsupervised Denoising Autoencoders to reconstruct spatial features and identify anomalies. However, the exact accuracy of these autoencoders was unevidenced, as distinguishing between harmless geological anomalies and actual erosion risks proved mathematically impossible without anchored physical constraints.
-            </p>
-            <p>
-                To rigorously evaluate the proposed Semi-Supervised Spatial GCN, it was benchmarked against classical models trained on the exact same 10% Anchor Seeds. The classical baseline used was a standard Deep Neural Network (DNN), representing a robust but non-spatial machine learning architecture. 
-            </p>
-            <p>
-                As seen in the empirical results below, the DNN Baseline achieved an exceptionally high 95.00% Accuracy on the isolated anchor seeds. However, this reveals a critical failure mode of pixel-wise machine learning. Because the Anchor Seeds were generated using deterministic proxy formulas (Rainfall, Slope, K-Factor, NDVI), the classical model simply reverse-engineered and memorized the formula pixel-by-pixel. 
-            </p>
             
-            <div class="overflow-x-auto my-8">
-                <table class="w-full border-collapse bg-white shadow-sm rounded overflow-hidden text-sm text-left">
-                    <thead class="bg-slate-100 border-b-2 border-slate-300">
-                        <tr>
-                            <th class="p-3 font-bold">Model Architecture</th>
-                            <th class="p-3">Topological Awareness</th>
-                            <th class="p-3">Empirical Accuracy</th>
-                            <th class="p-3">F1-Score</th>
-                            <th class="p-3 font-bold text-indigo-700">Macro Recall</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr>
-                            <td class="p-3 font-semibold text-gray-700">Denoising Autoencoder (Previous Work)</td>
-                            <td class="p-3">None (Unsupervised)</td>
-                            <td class="p-3 text-gray-400">Unevidenced</td>
-                            <td class="p-3 text-gray-400">Unevidenced</td>
-                            <td class="p-3 text-gray-400">Unevidenced</td>
-                        </tr>
-                        <tr>
-                            <td class="p-3 font-semibold text-gray-700">Deep Neural Network (Baseline)</td>
-                            <td class="p-3">None (Pixel-Wise)</td>
-                            <td class="p-3 text-red-600 font-bold">95.00% (Overfit to Proxy)</td>
-                            <td class="p-3 text-red-600">0.93</td>
-                            <td class="p-3 text-red-600">0.95</td>
-                        </tr>
-                        <tr class="bg-indigo-50">
-                            <td class="p-3 font-bold text-indigo-800">Proposed Spatial GCN</td>
-                            <td class="p-3 font-bold text-indigo-800">cKDTree Graph Edges</td>
-                            <td class="p-3 font-bold text-indigo-800">93.39%</td>
-                            <td class="p-3 font-bold text-indigo-800">0.93</td>
-                            <td class="p-3 font-bold text-indigo-800">0.94</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div style="display: flex; align-items: center; gap: 1.5rem;">
+                <div class="sat-status">
+                    <span id="sat-dot" class="sat-status-dot"></span>
+                    <span id="sat-text" class="sans-font">AI MIND: OFFLINE</span>
+                </div>
+                
+                <nav class="nav-tabs">
+                    <button class="tab-btn active" data-tab="dashboard">
+                        <span>📊</span> Dashboard
+                    </button>
+                    <button class="tab-btn" data-tab="paper">
+                        <span>📄</span> Research Paper
+                    </button>
+                </nav>
             </div>
-            <p>
-                While the DNN Baseline appears mathematically superior on the isolated Anchor Seeds, it is geographically blind. It will analyze a 0-degree flat slope situated directly beneath a towering cliff and declare the flat pixel "95% Safe," completely unable to perceive the kinetic energy of an incoming landslide. The Spatial GCN sacrifices a small percentage of deterministic proxy accuracy precisely because it topologically extends the danger boundaries into the surrounding valleys—proving true spatial intelligence over pixel-wise memorization.
-            </p>
+        </div>
+    </header>
 
+    <!-- Main Container -->
+    <main>
+        
+        <!-- Dashboard Section -->
+        <section id="dashboard-view" class="dashboard-grid">
+            
+            <!-- Left Side controls panel -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <!-- File Upload Panel -->
+                <div class="panel">
+                    <h2 class="panel-title"><span>📥</span> Satellite Telemetry Input</h2>
+                    <div id="dropzone" class="dropzone">
+                        <div class="dropzone-icon">📁</div>
+                        <h3 class="dropzone-title">Drag & drop dataset here</h3>
+                        <p class="dropzone-desc">Accepts .xlsx, .xls, or .csv files<br>(e.g. Merged_Woredas_All.xlsx)</p>
+                        <input type="file" id="file-input" class="hidden" accept=".xlsx,.xls,.csv">
+                    </div>
+                </div>
+                
+                <!-- Telemetry Stats Panel -->
+                <div class="panel">
+                    <h2 class="panel-title"><span>📶</span> AI Model Telemetry</h2>
+                    <div class="stats-list">
+                        <div class="stat-item">
+                            <span class="stat-label">Scanned Data Points</span>
+                            <span id="scanned-points" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Erodibility Risk</span>
+                            <span id="avg-erodibility" class="stat-value">0.0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Severe Risk Points</span>
+                            <span id="severe-points" class="stat-value" style="color:var(--alert-red)">0</span>
+                        </div>
+                    </div>
+                </div>
 
-            <h3>5.3. The Ethiopian NDVI Paradox</h3>
-            <p>
-                A standard geological assumption dictates that high vegetation density (NDVI) inherently prevents soil
-                erosion. However, post-inference analysis revealed a unique geomorphological reality specific to the
-                Ethiopian Highlands: High-Risk zones frequently possessed slightly denser vegetation than Safe zones.
-            </p>
-
-            <div class="overflow-x-auto my-8">
-                <table class="w-full border-collapse bg-white shadow-sm rounded overflow-hidden text-sm text-left">
-                    <thead class="bg-slate-100 border-b-2 border-slate-300">
-                        <tr>
-                            <th class="p-3 font-bold">Risk Zone Classification</th>
-                            <th class="p-3">Mean Topographic Slope</th>
-                            <th class="p-3">Mean Rainfall Index</th>
-                            <th class="p-3">Mean Stream Power (SPI)</th>
-                            <th class="p-3">Mean NDVI (Vegetation)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr>
-                            <td class="p-3 font-semibold text-gray-700">Low Risk (Safe)</td>
-                            <td class="p-3">0.091</td>
-                            <td class="p-3">0.207</td>
-                            <td class="p-3">0.0025</td>
-                            <td class="p-3">0.48</td>
-                        </tr>
-                        <tr class="bg-red-50">
-                            <td class="p-3 font-bold text-red-700">Severe Risk (Immediate)</td>
-                            <td class="p-3 font-bold text-red-700">0.340</td>
-                            <td class="p-3 font-bold text-red-700">0.380</td>
-                            <td class="p-3 font-bold text-red-700">0.0040</td>
-                            <td class="p-3 font-bold text-red-700">0.50</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- Woreda Breakdown Panel -->
+                <div class="panel">
+                    <h2 class="panel-title"><span>📌</span> Susceptibility Breakdown</h2>
+                    <div style="max-height: 250px; overflow-y: auto;">
+                        <table class="breakdown-table">
+                            <thead>
+                                <tr>
+                                    <th>Woreda</th>
+                                    <th>Safe</th>
+                                    <th>Monitor</th>
+                                    <th>Severe</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="woreda-breakdown-body">
+                                <tr>
+                                    <td colspan="5" style="text-align:center; color:var(--text-secondary); padding: 1.5rem 0;">
+                                        Upload a dataset to view regional statistics
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
             </div>
+            
+            <!-- Right Side main visualization -->
+            <div class="main-dashboard-content">
+                
+                <!-- Canvas Map Container -->
+                <div class="map-container" id="map-container">
+                    <div class="map-grid-overlay"></div>
+                    <div class="map-radar-circle" style="top: 20%; left: 30%;"></div>
+                    <div class="map-radar-circle" style="top: 60%; left: 70%;"></div>
+                    
+                    <!-- Scanner Laser -->
+                    <div class="laser-line" id="laser"></div>
+                    
+                    <!-- Canvas layer for high performance drawing -->
+                    <canvas id="map-canvas" class="map-canvas"></canvas>
+                    
+                    <!-- Loading overlay inside map -->
+                    <div id="loader" class="loader-overlay hidden">
+                        <div class="spinner"></div>
+                        <div id="loader-text" class="loader-text">ESTABLISHING CONNECTION...</div>
+                    </div>
 
-            <p>
-                While a rudimentary linear algorithm might falsely label vegetated cliffs as "Safe," the Graph Neural
-                Network accurately weighed the competing physical tensors. The GCN successfully deduced that despite the
-                stabilizing presence of forestation, the combination of catastrophic gravitational shear-stress and
-                massive torrential rainfall violently overpowers biological root systems.
-            </p>
-
-        <h3>5.4. Policy Action Zones</h3>
-<p>
-    Neural probability outputs were translated into actionable policy boundaries by applying both 
-    1D K-Means Clustering and Jenks Natural Breaks optimization to the continuous susceptibility matrix. 
-    Both independent algorithms converged on nearly identical thresholds (0.25 and 0.71), providing 
-    empirical evidence of the model’s stability and robustness.
-</p>
-<p>
-    Based on these thresholds, three distinct susceptibility zones were defined:
-</p>
-<ul>
-    <li><strong>Zone 1 (Low Risk):</strong> values ≤ 0.25</li>
-    <li><strong>Zone 2 (Moderate Risk):</strong> 0.25 &lt; values ≤ 0.71</li>
-    <li><strong>Zone 3 (High Risk):</strong> values &gt; 0.71</li>
-</ul>
-<p>
-    These zones establish clear, interpretable boundaries for policy action and resource prioritization.
-</p>
-
-            <figure class="my-10">
-                <img src="assets/plot_9.png" alt="Policy Action Zones"
-                    class="w-full rounded shadow-xl border border-gray-300">
-                <figcaption class="figure-caption">Figure 3: Policy Action Zones defined by independent clustering
-                    algorithms.</figcaption>
-            </figure>
-
-            <h3>5.5. AI Geospatial Prediction Results</h3>
-            <p>
-                The resulting geospatial topographic map explicitly delineates regional erosion hotspots across the five
-                studied Amhara Woredas: Ankober, Kewet, Menjar, Menze Gera, and Merabete. To quantify the visual output
-                of the AI, an exact pixel-by-pixel statistical breakdown was generated for each Woreda.
-            </p>
-
-            <div class="overflow-x-auto my-8">
-                <table class="w-full border-collapse bg-white shadow-sm rounded overflow-hidden text-sm text-left">
-                    <thead class="bg-slate-100 border-b-2 border-slate-300">
-                        <tr>
-                            <th class="p-3 font-bold">Woreda</th>
-                            <th class="p-3">Low Risk (Safe)</th>
-                            <th class="p-3">Moderate Risk (Monitor)</th>
-                            <th class="p-3 font-bold text-red-700">Severe Risk (Immediate Action)</th>
-                            <th class="p-3">Total Pixels</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr>
-                            <td class="p-3 font-semibold text-gray-700">Ankober</td>
-                            <td class="p-3">20,555</td>
-                            <td class="p-3">16,622</td>
-                            <td class="p-3 font-bold text-red-700">26,685</td>
-                            <td class="p-3">63,862</td>
-                        </tr>
-                        <tr>
-                            <td class="p-3 font-semibold text-gray-700">Kewet</td>
-                            <td class="p-3">14,470</td>
-                            <td class="p-3">3,096</td>
-                            <td class="p-3 font-bold text-red-700">13,047</td>
-                            <td class="p-3">30,613</td>
-                        </tr>
-                        <tr>
-                            <td class="p-3 font-semibold text-gray-700">Menjar</td>
-                            <td class="p-3">50,763</td>
-                            <td class="p-3">2,365</td>
-                            <td class="p-3 font-bold text-red-700">2,406</td>
-                            <td class="p-3">55,534</td>
-                        </tr>
-                        <tr>
-                            <td class="p-3 font-semibold text-gray-700">Menze Gera</td>
-                            <td class="p-3">32,532</td>
-                            <td class="p-3">3,573</td>
-                            <td class="p-3 font-bold text-red-700">6,484</td>
-                            <td class="p-3">42,589</td>
-                        </tr>
-                        <tr>
-                            <td class="p-3 font-semibold text-gray-700">Merabete</td>
-                            <td class="p-3">20,167</td>
-                            <td class="p-3">6,391</td>
-                            <td class="p-3 font-bold text-red-700">35,873</td>
-                            <td class="p-3">62,431</td>
-                        </tr>
-                    </tbody>
-                </table>
+                    <!-- Map Layer Controls overlay -->
+                    <div class="map-controls">
+                        <div class="map-control-title">Active Map Layer</div>
+                        <label class="map-option">
+                            <input type="radio" name="map-layer" value="risk" checked>
+                            <span>🔴 GCN Erosion Risk (AI Output)</span>
+                        </label>
+                        <label class="map-option">
+                            <input type="radio" name="map-layer" value="elevation">
+                            <span>🟢 Elevation (DEM Height)</span>
+                        </label>
+                        <label class="map-option">
+                            <input type="radio" name="map-layer" value="ndvi">
+                            <span>🌿 NDVI Vegetation Index</span>
+                        </label>
+                        <label class="map-option">
+                            <input type="radio" name="map-layer" value="rainfall">
+                            <span>🔵 Annual Rainfall Index</span>
+                        </label>
+                        <div class="map-control-title" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 0.5rem;">Topology</div>
+                        <label class="map-option">
+                            <input type="checkbox" id="opt-edges" checked>
+                            <span>🕸️ Show GCN Graph Edges</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Recommendations & Charts Grid -->
+                <div class="analysis-charts-grid">
+                    
+                    <!-- AI recommendation report -->
+                    <div class="panel ai-report-panel">
+                        <h2 class="panel-title"><span>🧠</span> AI Policy Advisory Board</h2>
+                        <div id="recommendations-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
+                            <div class="ai-recommendation-box" style="border-left-color: var(--border-color)">
+                                <div class="ai-rec-title" style="color: var(--text-secondary)">
+                                    <span>💡</span> System Idle
+                                </div>
+                                <div class="ai-rec-text">
+                                    Please drag and drop a spatial soil telemetry file (Excel or CSV) into the upload zone to run the Graph Convolutional Networks. The AI advisor will then generate site-specific mitigation recommendations.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Distribution charts -->
+                    <div class="panel">
+                        <h2 class="panel-title"><span>📈</span> Risk Susceptibility Distribution</h2>
+                        <div class="chart-container">
+                            <canvas id="risk-distribution-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                </div>
+                
             </div>
-
-            <p>
-                The statistical breakdown fundamentally aligns with the physical reality of the region.
-                <strong>Merabete</strong> and <strong>Ankober</strong> suffer from the most extreme erodibility, bearing
-                the overwhelming majority of the structural threat with 35,873 and 26,685 Severe Risk pixels,
-                respectively. These specific zones feature sheer topographic drops intersecting with highly vulnerable
-                FAO soil compositions, leading the AI to correctly project catastrophic kinetic collapse zones.
-            </p>
-            <p>
-                Conversely, the flatter plains of Menjar are overwhelmingly classified as Low Risk (50,763 safe pixels),
-                barring specific areas directly adjacent to unstable cliffs. The continuous visual projection, backed by
-                the rigorous statistical breakdown, empowers local officials to bypass broad generalizations and direct
-                emergency structural stabilization resources precisely into Merabete and Ankober where the physics
-                mandate them.
-            </p>
-            <figure class="my-10">
-                <img src="assets/plot_11.png" alt="Geospatial Topographic Map"
-                    class="w-full rounded shadow-xl border border-gray-300">
-                <figcaption class="figure-caption">Figure 4: Geospatial Susceptibility Map of the Amhara Region. Red
-                    zones indicate imminent risk of soil detachment.</figcaption>
-            </figure>
-
-            <h3>5.6. The Intelligence of "Misclassification"</h3>
-            <p>
-                The most brilliant aspect of the AI's logic is found in its mathematically "Misclassified" pixels. For
-                example, when a flat piece of farmland is situated directly at the bottom of a massive mountain cliff,
-                standard math sees the 0-degree slope and declares it safe. However, the GCN perceives the cliff
-                towering above receiving heavy rain and dynamically predicts the kinetic chain reaction of a landslide.
-                It intelligently extends the danger zone outward to ensure accurate risk profiling.
-            </p>
-            <figure class="my-10">
-                <img src="assets/plot_13.png" alt="Validation Misclassification"
-                    class="w-full rounded shadow-xl border border-gray-300">
-                <figcaption class="figure-caption">Figure 5: Revealing the physical intelligence behind the topological
-                    misclassifications.</figcaption>
-            </figure>
-
-            <h3>5.7. Architectural Ablation Study</h3>
-            <p>
-                To mathematically justify the complex topology of the network, an ablation study was conducted. The
-                study evaluated the model's F1-Score while systematically removing core structural components. When the
-                topological edges (cKDTree nearest-neighbors) were reduced from \(k=8\) to \(k=4\), the F1-Score
-                degraded by 6.2%, indicating that localized water cascades require wider multi-directional awareness.
-                Furthermore, removing the mathematical decomposition of the Topographic Aspect (Sine/Cosine
-                transformation) caused massive gradient instability during training. This conclusively proves that every
-                geometric transformation and topological connection within the architecture is mathematically necessary
-                for optimal stabilization.
-            </p>
-
-            <h3>5.8. System Limitations and Error Analysis</h3>
-            <p>
-                Despite achieving state-of-the-art inference on unlabelled geographic terrain, the architecture does
-                possess inherent limitations. The semi-supervised reliance on physical "Anchor Seeds" means that if the
-                baseline proxy formula (RUSLE) contains a fundamental flaw for a specific localized micro-climate, the
-                AI risks propagating that bias across the graph. Additionally, the model currently utilizes static
-                multispectral imagery; transient events, such as a localized flash flood masked by subsequent cloud
-                cover, may go undetected unless the satellite telemetry maintains a high temporal revisit rate with
-                minimal atmospheric interference. Acknowledging these constraints is vital for responsible deployment in
-                disaster management.
-            </p>
+            
         </section>
-
-        <section>
-            <h2>6. Conclusion</h2>
-            <p>
-                This study successfully demonstrated the efficacy of a Semi-Supervised Spatial Graph Convolutional
-                Network in predicting soil erosion susceptibility across complex topographical environments in Ethiopia.
-                By discarding the limitations of single-point analysis and leveraging the topological structure of
-                geospatial data, the AI accurately modeled the kinetic flow of hydrological and gravitational threats.
-                The architecture's ability to extrapolate highly accurate continuous probabilities from only 10% extreme
-                ground-truth anchors provides a scalable blueprint for assessing large geographic regions. Ultimately,
-                the system isolates high-risk structural collapse zones with a precision that empowers policymakers to
-                proactively redirect emergency stabilization resources.
-            </p>
+        
+        <!-- Academic Paper Section (Hidden by default) -->
+        <section id="paper-view" class="hidden">
+            <div class="paper-frame-container">
+                <iframe id="paper-iframe" class="paper-iframe"></iframe>
+            </div>
         </section>
+        
+    </main>
 
-        <section>
-            <h2>7. Future Work</h2>
-            <p>
-                Future research will focus on transitioning this static architecture into a dynamic, temporal monitoring
-                framework. The primary objective is to integrate the GCN with real-time continuous satellite telemetry
-                streams and automated early warning dashboards. Expanding the graph structure to include temporal edges
-                (Spatio-Temporal Graph Neural Networks) will allow for active, predictive tracking of kinetic soil
-                collapse events before they manifest physically.
-            </p>
-        </section>
-
-        <section class="references border-t-2 pt-8">
-            <h2 class="border-none mb-6">References</h2>
-            <p>[1] T. N. Kipf and M. Welling, "Semi-Supervised Classification with Graph Convolutional Networks,"
-                <em>arXiv preprint arXiv:1609.02907</em>, 2016.</p>
-            <p>[2] K. G. Renard, G. R. Foster, G. A. Weesies, D. K. McCool, and D. C. Yoder, "Predicting soil erosion by
-                water: a guide to conservation planning with the Revised Universal Soil Loss Equation (RUSLE),"
-                <em>Agriculture Handbook</em>, no. 703, 1997.</p>
-            <p>[3] W. Tobler, "A Computer Movie Simulating Urban Growth in the Detroit Region," <em>Economic
-                    Geography</em>, vol. 46, pp. 234-240, 1970.</p>
-            <p>[4] M. Fey and J. E. Lenssen, "Fast Graph Representation Learning with PyTorch Geometric," <em>arXiv
-                    preprint arXiv:1903.02428</em>, 2019.</p>
-            <p>[5] P. Veličković, G. Cucurull, A. Casanova, A. Romero, P. Lio, and Y. Bengio, "Graph Attention
-                Networks," <em>International Conference on Learning Representations (ICLR)</em>, 2018.</p>
-            <p>[6] W. Hamilton, Z. Ying, and J. Leskovec, "Inductive Representation Learning on Large Graphs,"
-                <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 30, 2017.</p>
-            <p>[7] S. A. Haile, "Unsupervised Denoising Autoencoders for Topological Feature Extraction in Geospatial
-                Intelligence," <em>Internal Research Documentation</em>, 2025.</p>
-        </section>
-
-    </article>
-
+    <!-- Custom Logic Script -->
+    <script src="dashboard.js"></script>
 </body>
-
 </html>
