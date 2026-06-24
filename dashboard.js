@@ -89,7 +89,7 @@ async function loadGCNWeights() {
         const response = await fetch('./Final_Research_Outputs/Erosion_GCN_Weights.json');
         if (!response.ok) throw new Error("Weights file not found");
         gcnWeights = await response.json();
-        
+
         sysState.textContent = "SYSTEM READY";
         sysState.className = "sat-status-value ready";
         console.log("Terrashield AI Core Weights Loaded.");
@@ -140,7 +140,7 @@ function handleUploadedFile(file) {
     const reader = new FileReader();
     const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
 
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             let data = [];
             if (isExcel) {
@@ -179,15 +179,15 @@ function handleUploadedFile(file) {
 function parseCSV(text) {
     const lines = text.split(/\r?\n/);
     if (lines.length === 0) return [];
-    
+
     const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
     const result = [];
-    
+
     for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
         const values = lines[i].split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
         if (values.length !== headers.length) continue;
-        
+
         const row = {};
         for (let j = 0; j < headers.length; j++) {
             row[headers[j]] = values[j];
@@ -200,7 +200,7 @@ function parseCSV(text) {
 // Dynamic Filter Controls
 function initFilterHandlers() {
     const filters = ['filter-slope', 'filter-rainfall', 'filter-ndvi', 'filter-woreda'];
-    
+
     filters.forEach(id => {
         const el = document.getElementById(id);
         if (id !== 'filter-woreda') {
@@ -321,10 +321,10 @@ async function processDataset(data) {
 // Extract & scale features
 function extractAndScaleFeatures(data) {
     const features = [];
-    
+
     data.forEach((row) => {
         const featureVector = new Float32Array(33);
-        
+
         featureVector[0] = parseFloat(row['K_Factor']) || 0.20;
         featureVector[1] = scaleFeature(row['Elevation (m)'], 'Elevation (m)');
         featureVector[2] = scaleFeature(row['Slope (Degree)'], 'Slope (Degree)');
@@ -335,7 +335,7 @@ function extractAndScaleFeatures(data) {
         featureVector[7] = scaleFeature(row['TRI'], 'TRI');
         featureVector[8] = scaleFeature(row['Plan Curvature'], 'Plan Curvature');
         featureVector[9] = scaleFeature(row['Profile Curvature'], 'Profile Curvature');
-        
+
         const aspectVal = parseFloat(row['Aspect (Degree)']) || 0;
         featureVector[10] = Math.sin(aspectVal * Math.PI / 180);
         featureVector[11] = Math.cos(aspectVal * Math.PI / 180);
@@ -343,7 +343,7 @@ function extractAndScaleFeatures(data) {
 
         const geoVal = row['Geology_Formation'] || 'Unknown_Geo';
         const luVal = row['Land_Use'] || 'Unknown_LU';
-        
+
         CATEGORICAL_KEYS.forEach((key, keyIdx) => {
             const vectorIndex = 13 + keyIdx;
             if (key.startsWith('Geology_Formation_')) {
@@ -375,10 +375,10 @@ function scaleFeature(valRaw, featName) {
 // Build Spatial Grid Index
 function buildSpatialGridIndex(data) {
     const N = data.length;
-    
+
     gridMinLat = 90; gridMaxLat = -90;
     gridMinLon = 180; gridMaxLon = -180;
-    
+
     data.forEach(d => {
         const lat = parseFloat(d['Latitude']) || 0;
         const lon = parseFloat(d['Longitude']) || 0;
@@ -390,27 +390,27 @@ function buildSpatialGridIndex(data) {
 
     gridCols = Math.max(5, Math.floor(Math.sqrt(N) / 4));
     gridRows = Math.max(5, Math.floor(Math.sqrt(N) / 4));
-    
+
     const latSpan = gridMaxLat - gridMinLat || 0.01;
     const lonSpan = gridMaxLon - gridMinLon || 0.01;
 
     gridCellSizeLat = latSpan / gridRows;
     gridCellSizeLon = lonSpan / gridCols;
 
-    spatialGrid = Array.from({ length: gridCols }, () => 
+    spatialGrid = Array.from({ length: gridCols }, () =>
         Array.from({ length: gridRows }, () => [])
     );
 
     data.forEach((d, idx) => {
         const lat = parseFloat(d['Latitude']) || 0;
         const lon = parseFloat(d['Longitude']) || 0;
-        
+
         let col = Math.floor((lon - gridMinLon) / gridCellSizeLon);
         let row = Math.floor((lat - gridMinLat) / gridCellSizeLat);
-        
+
         col = Math.max(0, Math.min(gridCols - 1, col));
         row = Math.max(0, Math.min(gridRows - 1, row));
-        
+
         spatialGrid[col][row].push(idx);
     });
 }
@@ -431,7 +431,7 @@ function buildSpatialGraph(data) {
         nodeDegrees[i] += 1;
 
         const c_i = coords[i];
-        
+
         let col = Math.floor((c_i.lon - gridMinLon) / gridCellSizeLon);
         let row = Math.floor((c_i.lat - gridMinLat) / gridCellSizeLat);
         col = Math.max(0, Math.min(gridCols - 1, col));
@@ -443,13 +443,13 @@ function buildSpatialGraph(data) {
             for (let dy = -1; dy <= 1; dy++) {
                 const ncol = col + dx;
                 const nrow = row + dy;
-                
+
                 if (ncol >= 0 && ncol < gridCols && nrow >= 0 && nrow < gridRows) {
                     const bucket = spatialGrid[ncol][nrow];
                     for (let b = 0; b < bucket.length; b++) {
                         const j = bucket[b];
                         if (i === j) continue;
-                        
+
                         const c_j = coords[j];
                         const dSq = (c_i.lat - c_j.lat) ** 2 + (c_i.lon - c_j.lon) ** 2;
                         candidates.push({ idx: j, dSq: dSq });
@@ -500,10 +500,10 @@ function runGCNInference() {
         const deg_u = nodeDegrees[u];
         const deg_v = nodeDegrees[v];
         const norm = 1.0 / Math.sqrt(deg_u * deg_v);
-        
+
         const proj_u = layer1Proj[u];
         const conv_v = layer1Conv[v];
-        
+
         for (let h = 0; h < 64; h++) {
             conv_v[h] += norm * proj_u[h];
         }
@@ -536,10 +536,10 @@ function runGCNInference() {
         const deg_u = nodeDegrees[u];
         const deg_v = nodeDegrees[v];
         const norm = 1.0 / Math.sqrt(deg_u * deg_v);
-        
+
         const proj_u = layer2Proj[u];
         const conv_v = layer2Conv[v];
-        
+
         for (let h = 0; h < 64; h++) {
             conv_v[h] += norm * proj_u[h];
         }
@@ -556,7 +556,7 @@ function runGCNInference() {
 
     for (let i = 0; i < N; i++) {
         const h2_i = h2[i];
-        
+
         let logit0 = bOut[0];
         const wOut_row0 = wOut[0];
         for (let h = 0; h < 64; h++) {
@@ -572,7 +572,7 @@ function runGCNInference() {
         const maxLogit = Math.max(logit0, logit1);
         const exp0 = Math.exp(logit0 - maxLogit);
         const exp1 = Math.exp(logit1 - maxLogit);
-        
+
         predictions[i] = exp1 / (exp0 + exp1);
     }
 }
@@ -748,12 +748,12 @@ function updateTelemetryDisplay(idx) {
     // Location
     document.getElementById("card-woreda").textContent = d['Woreda'] || 'N/A';
     document.getElementById("card-coords").textContent = `${(parseFloat(d['Latitude']) || 0).toFixed(5)}°N, ${(parseFloat(d['Longitude']) || 0).toFixed(5)}°E`;
-    
+
     // Risk score
     const riskPercent = (prob * 100).toFixed(1);
     const riskScore = document.getElementById("card-risk-score");
     riskScore.textContent = `${riskPercent}%`;
-    
+
     if (prob > 0.71) {
         riskScore.style.color = "var(--alert-red)";
     } else if (prob > 0.25) {
@@ -814,9 +814,13 @@ let offscreenCtx = null;
 let lastRenderedLayer = "";
 
 function setupCanvasMap() {
-    const canvas = document.getElementById("map-canvas");
+    const originalCanvas = document.getElementById("map-canvas");
     const container = document.getElementById("map-container");
-    
+
+    // Clear old event listeners by replacing the canvas with a clone BEFORE getting the context
+    const canvas = originalCanvas.cloneNode(true);
+    originalCanvas.replaceWith(canvas);
+
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
 
@@ -844,7 +848,7 @@ function setupCanvasMap() {
 
     const latSpan = maxLat - minLat || 0.01;
     const lonSpan = maxLon - minLon || 0.01;
-    
+
     minLat -= latSpan * 0.06;
     maxLat += latSpan * 0.06;
     minLon -= lonSpan * 0.06;
@@ -855,11 +859,11 @@ function setupCanvasMap() {
         // 1. Convert to normalized [0, 1] range relative to bounding box
         const xNorm = (lon - minLon) / (maxLon - minLon);
         const yNorm = 1.0 - (lat - minLat) / (maxLat - minLat); // Flip lat so North is up
-        
+
         // Elevation normalized (0 to 1)
         const elev = parseFloat(elevRaw) || 971.0;
         const zNorm = (elev - 971.0) / (3668.0 - 971.0); // max height approx 3668m
-        
+
         if (mapProjectionMode === '2d') {
             // Flat 2D mapping
             return {
@@ -871,14 +875,14 @@ function setupCanvasMap() {
             // Rotate around Z axis (center is at 0.5, 0.5)
             const cosR = Math.cos(mapRotationAngle);
             const sinR = Math.sin(mapRotationAngle);
-            
+
             const rx = (xNorm - 0.5) * cosR - (yNorm - 0.5) * sinR;
             const ry = (xNorm - 0.5) * sinR + (yNorm - 0.5) * cosR;
-            
+
             // Project with tilt (Y axis squashed, Z height offsets Y upwards)
             const isoX = rx * canvas.width * 0.7 + canvas.width * 0.5;
             const isoY = (ry * Math.cos(mapTiltAngle) - zNorm * 0.28) * canvas.height * 0.7 + canvas.height * 0.55;
-            
+
             return { x: isoX, y: isoY };
         }
     }
@@ -906,11 +910,11 @@ function setupCanvasMap() {
             // so we return the center-based approximation to search surrounding grid cells.
             const cosR = Math.cos(-mapRotationAngle);
             const sinR = Math.sin(-mapRotationAngle);
-            
+
             // Unscale and untranslate
             const rx = (rawX - canvas.width * 0.5) / (canvas.width * 0.7);
             const ry = (rawY - canvas.height * 0.55) / (canvas.height * 0.7 * Math.cos(mapTiltAngle));
-            
+
             // Unrotate
             const xNorm = rx * cosR - ry * sinR + 0.5;
             const yNorm = rx * sinR + ry * cosR + 0.5;
@@ -935,7 +939,7 @@ function setupCanvasMap() {
     const mapType = document.querySelector('input[name="map-layer"]:checked').value;
 
     const cacheKey = `${mapType}_${showEdges}_${showStreams}_${mapProjectionMode}_${mapRotationAngle}_${filteredDataset.length}`;
-    
+
     // Draw static base map to offscreen buffer if settings changed
     if (lastRenderedLayer !== cacheKey) {
         offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
@@ -962,16 +966,16 @@ function setupCanvasMap() {
         if (showEdges && graphEdges) {
             offscreenCtx.lineWidth = 0.4;
             offscreenCtx.strokeStyle = "rgba(100, 116, 139, 0.12)"; // light gray
-            
+
             const activeSet = new Set(filteredDataset.map(d => d._rawIndex));
-            
+
             graphEdges.forEach(([u, v]) => {
                 if (u === v) return;
                 if (!activeSet.has(u) || !activeSet.has(v)) return;
 
                 const p_u = projectPoint(parseFloat(rawDataset[u]['Latitude']), parseFloat(rawDataset[u]['Longitude']), rawDataset[u]['Elevation (m)']);
                 const p_v = projectPoint(parseFloat(rawDataset[v]['Latitude']), parseFloat(rawDataset[v]['Longitude']), rawDataset[v]['Elevation (m)']);
-                
+
                 offscreenCtx.beginPath();
                 offscreenCtx.moveTo(p_u.x, p_u.y);
                 offscreenCtx.lineTo(p_v.x, p_v.y);
@@ -983,13 +987,13 @@ function setupCanvasMap() {
         if (showStreams && graphEdges) {
             offscreenCtx.lineWidth = 0.9;
             offscreenCtx.strokeStyle = "rgba(59, 130, 246, 0.35)"; // Blue streams
-            
+
             const activeSet = new Set(filteredDataset.map(d => d._rawIndex));
-            
+
             graphEdges.forEach(([u, v]) => {
                 if (u === v) return;
                 if (!activeSet.has(u) || !activeSet.has(v)) return;
-                
+
                 // If either node has a high Stream Power Index (SPI), we draw it as a water stream!
                 // SPI in rawDataset is unscaled. We check if raw SPI > 0.003
                 const spi_u = parseFloat(rawDataset[u]['SPI']) || 0;
@@ -1049,7 +1053,7 @@ function setupCanvasMap() {
 
         // 1. Draw cached background offscreen canvas
         ctx.drawImage(
-            offscreenCanvas, 
+            offscreenCanvas,
             0, 0, offscreenCanvas.width, offscreenCanvas.height,
             mapOffsetX, mapOffsetY, offscreenCanvas.width * mapZoom, offscreenCanvas.height * mapZoom
         );
@@ -1060,7 +1064,7 @@ function setupCanvasMap() {
             const prob = predictions[hoveredNodeIndex];
             const lat = parseFloat(d['Latitude']);
             const lon = parseFloat(d['Longitude']);
-            
+
             const pos = getCanvasCoordinates(lat, lon, d['Elevation (m)']);
 
             let color = "var(--accent-mint)";
@@ -1087,10 +1091,7 @@ function setupCanvasMap() {
     window.triggerMapRedraw = drawMap;
 
     // Listeners
-    canvas.replaceWith(canvas.cloneNode(true));
-    const activeCanvas = document.getElementById("map-canvas");
-
-    activeCanvas.addEventListener("mousedown", (e) => {
+    canvas.addEventListener("mousedown", (e) => {
         isDraggingMap = true;
         dragStartX = e.clientX - mapOffsetX;
         dragStartY = e.clientY - mapOffsetY;
@@ -1100,8 +1101,8 @@ function setupCanvasMap() {
         isDraggingMap = false;
     });
 
-    activeCanvas.addEventListener("mousemove", (e) => {
-        const rect = activeCanvas.getBoundingClientRect();
+    canvas.addEventListener("mousemove", (e) => {
+        const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
@@ -1112,10 +1113,10 @@ function setupCanvasMap() {
         } else {
             // fast grid hover search
             const geo = getGeoCoordinates(mouseX, mouseY);
-            
+
             let cellCol = Math.floor((geo.lon - gridMinLon) / gridCellSizeLon);
             let cellRow = Math.floor((geo.lat - gridMinLat) / gridCellSizeLat);
-            
+
             let foundIndex = -1;
             let minDistance = 14;
 
@@ -1131,7 +1132,7 @@ function setupCanvasMap() {
                                 const d_lat = parseFloat(rawDataset[idx]['Latitude']);
                                 const d_lon = parseFloat(rawDataset[idx]['Longitude']);
                                 const pos = getCanvasCoordinates(d_lat, d_lon, rawDataset[idx]['Elevation (m)']);
-                                
+
                                 const dist = Math.sqrt((pos.x - mouseX) ** 2 + (pos.y - mouseY) ** 2);
                                 if (dist < minDistance) {
                                     minDistance = dist;
@@ -1155,10 +1156,10 @@ function setupCanvasMap() {
         }
     });
 
-    activeCanvas.addEventListener("wheel", (e) => {
+    canvas.addEventListener("wheel", (e) => {
         e.preventDefault();
         const zoomIntensity = 0.08;
-        const rect = activeCanvas.getBoundingClientRect();
+        const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
@@ -1180,18 +1181,18 @@ function setupCanvasMap() {
 
     document.querySelectorAll('input[name="map-layer"]').forEach(el => {
         el.addEventListener("change", () => {
-            lastRenderedLayer = ""; 
+            lastRenderedLayer = "";
             setupCanvasMap();
         });
     });
 
     document.getElementById("opt-edges").addEventListener("change", () => {
-        lastRenderedLayer = ""; 
+        lastRenderedLayer = "";
         setupCanvasMap();
     });
 
     document.getElementById("opt-streams").addEventListener("change", () => {
-        lastRenderedLayer = ""; 
+        lastRenderedLayer = "";
         setupCanvasMap();
     });
 
@@ -1270,7 +1271,7 @@ let stressorChart = null;
 
 function renderCharts(low, mod, severe) {
     const ctx = document.getElementById("risk-distribution-chart").getContext("2d");
-    
+
     if (riskChart) {
         riskChart.destroy();
     }
@@ -1362,7 +1363,7 @@ function renderEnvironmentalAverages(slopeSafe, slopeSev, rainSafe, rainSev, ndv
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             let label = context.dataset.label || '';
                             let val = context.raw;
                             if (context.dataIndex === 1) {
