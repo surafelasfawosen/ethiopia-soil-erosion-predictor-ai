@@ -270,17 +270,17 @@ main {
     position: relative;
     border-radius: 0.75rem;
     overflow: hidden;
-    background: #0f1610; /* Clean dark-forest grid backdrop */
-    box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.9);
-    border: 1px solid #1f2f21;
+    background: #ffffff; /* Clean high-contrast white background */
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
 }
 
 .map-grid-overlay {
     position: absolute;
     inset: 0;
     background-image: 
-        linear-gradient(rgba(34, 197, 94, 0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(34, 197, 94, 0.04) 1px, transparent 1px);
+        linear-gradient(rgba(22, 101, 52, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(22, 101, 52, 0.03) 1px, transparent 1px);
     background-size: 25px 25px;
     pointer-events: none;
 }
@@ -289,10 +289,10 @@ main {
     position: absolute;
     width: 180px;
     height: 180px;
-    border: 1px solid rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(22, 101, 52, 0.05);
     border-radius: 50%;
     pointer-events: none;
-    animation: radar-pulse 4s infinite linear;
+    animation: radar-pulse 5s infinite linear;
 }
 
 .map-canvas {
@@ -325,24 +325,25 @@ main {
     position: absolute;
     bottom: 1.25rem;
     left: 1.25rem;
-    background: rgba(15, 22, 16, 0.88);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(34, 197, 94, 0.2);
+    border: 1px solid var(--border-color);
     padding: 0.65rem 0.85rem;
     border-radius: 0.5rem;
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
     z-index: 20;
-    color: white;
+    color: var(--text-primary);
+    box-shadow: var(--card-shadow);
 }
 
 .map-control-title {
     font-size: 0.65rem;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--accent-mint);
+    color: var(--primary-green);
 }
 
 .map-option {
@@ -352,15 +353,62 @@ main {
     font-size: 0.78rem;
     cursor: pointer;
     user-select: none;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--text-secondary);
 }
 
 .map-option:hover {
-    color: white;
+    color: var(--text-primary);
 }
 
 .map-option input {
-    accent-color: var(--accent-mint);
+    accent-color: var(--primary-green);
+}
+
+/* 2D/3D Projection Tab buttons */
+.proj-tab-btn {
+    background: transparent;
+    border: none;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    border-radius: 0.35rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.proj-tab-btn:hover {
+    color: var(--primary-green);
+}
+
+.proj-tab-btn.active {
+    background: var(--primary-green);
+    color: white;
+}
+
+/* Map Navigation buttons */
+.map-nav-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--card-shadow);
+    transition: all 0.15s ease;
+}
+
+.map-nav-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--primary-green);
+    transform: scale(1.05);
 }
 
 /* Charts grid */
@@ -380,6 +428,27 @@ main {
     height: 230px;
     position: relative;
 }
+
+/* Telemetry progress bars */
+.progress-bar-wrapper {
+    width: 100%;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-top: 0.25rem;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bar-green { background-color: var(--accent-mint); }
+.bar-blue { background-color: #3b82f6; }
+.bar-orange { background-color: var(--alert-orange); }
+.bar-red { background-color: var(--alert-red); }
 
 /* Policy Recommendations */
 .ai-report-panel {
@@ -515,7 +584,7 @@ main {
 @keyframes radar-pulse {
     0% {
         transform: scale(0.1);
-        opacity: 0.75;
+        opacity: 0.35;
     }
     100% {
         transform: scale(2.4);
