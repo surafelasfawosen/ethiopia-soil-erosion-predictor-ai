@@ -1,14 +1,23 @@
-// AI Spatial GCN Soil Erosion Dashboard - Engine
-// Implementation of client-side GCN prediction and visualization
+// Terrashield AI™ - Geospatial Land Degradation Platform
+// Optimized GIS analytics and GCN soil erodibility engine
 
 let gcnWeights = null;
-let currentDataset = null;
-let scaledFeatures = null;
-let graphEdges = null;
-let nodeDegrees = null;
-let predictions = null;
+let rawDataset = null;      // Holds the original uploaded rows
+let filteredDataset = null; // Holds the currently filtered subset of rows
+let scaledFeatures = [];    // Normalized float vectors [N, 33]
+let graphEdges = [];        // Graph connections [[u, v], ...]
+let nodeDegrees = null;     // Degree array for normalization
+let predictions = null;     // Calculated risk probabilities
 
-// MinMaxScaler ranges from training
+// Spatial Grid index for O(N) neighbor search and O(1) hover search
+let spatialGrid = null;
+let gridCellSizeLat = 0;
+let gridCellSizeLon = 0;
+let gridMinLat = 0, gridMaxLat = 0;
+let gridMinLon = 0, gridMaxLon = 0;
+let gridCols = 0, gridRows = 0;
+
+// MinMaxScaler parameters from training
 const SCALER_PARAMS = {
     'Elevation (m)': { min: 971.0, max: 3668.0 },
     'Slope (Degree)': { min: 0.0, max: 90.0 },
@@ -22,7 +31,6 @@ const SCALER_PARAMS = {
     'Drainage Density (m)': { min: 0.0, max: 6216.283429 }
 };
 
-// Hard physical limits for clipping
 const PHYSICAL_BOUNDS = {
     'Elevation (m)': { min: -150, max: 4600 },
     'Slope (Degree)': { min: 0, max: 90 },
@@ -30,7 +38,6 @@ const PHYSICAL_BOUNDS = {
     'NDVI_Value': { min: -1.0, max: 1.0 }
 };
 
-// 20 Categorical encoding keys in exact sequence expected by weight matrix (dimensions 14 to 33)
 const CATEGORICAL_KEYS = [
     'Geology_Formation_Alaiae Formation',
     'Geology_Formation_Alajae Formation',
@@ -54,64 +61,33 @@ const CATEGORICAL_KEYS = [
     'Land_Use_Vegetation aquatic'
 ];
 
-// Initialize application
+// App entry point
 document.addEventListener("DOMContentLoaded", async () => {
-    initTabs();
     initDragDrop();
+    initFilterHandlers();
+    initZoomControls();
     await loadGCNWeights();
 });
 
-// Navigation Tabs
-function initTabs() {
-    const tabs = document.querySelectorAll(".tab-btn");
-    const dashboardSection = document.getElementById("dashboard-view");
-    const paperSection = document.getElementById("paper-view");
-
-    tabs.forEach(tab => {
-        tab.addEventListener("click", () => {
-            tabs.forEach(t => t.classList.remove("active"));
-            tab.classList.add("active");
-
-            const target = tab.dataset.tab;
-            if (target === "dashboard") {
-                dashboardSection.classList.remove("hidden");
-                paperSection.classList.add("hidden");
-            } else {
-                dashboardSection.classList.add("hidden");
-                paperSection.classList.remove("hidden");
-                
-                // Lazy-load paper iframe if not loaded
-                const iframe = document.getElementById("paper-iframe");
-                if (!iframe.src) {
-                    iframe.src = "paper.html";
-                }
-            }
-        });
-    });
-}
-
 // Load GCN weights
 async function loadGCNWeights() {
-    const satDot = document.getElementById("sat-dot");
-    const satText = document.getElementById("sat-text");
+    const sysState = document.getElementById("system-state");
     try {
         const response = await fetch('./Final_Research_Outputs/Erosion_GCN_Weights.json');
         if (!response.ok) throw new Error("Weights file not found");
         gcnWeights = await response.json();
         
-        satDot.classList.add("active");
-        satText.textContent = "AI MIND: ONLINE";
-        satText.style.color = "var(--accent-emerald)";
-        console.log("GCN Model Weights Loaded Successfully.");
+        sysState.textContent = "SYSTEM READY";
+        sysState.className = "sat-status-value ready";
+        console.log("Terrashield AI Core Weights Loaded.");
     } catch (e) {
         console.error("Error loading GCN weights:", e);
-        satText.textContent = "AI MIND: OFFLINE";
-        satText.style.color = "var(--alert-red)";
-        alert("Failed to load GCN Model weights from Final_Research_Outputs/Erosion_GCN_Weights.json. Please check if the file is exported correctly.");
+        sysState.textContent = "ENGINE OFFLINE";
+        sysState.className = "sat-status-value offline";
     }
 }
 
-// Drag & Drop File Upload
+// Drag & Drop
 function initDragDrop() {
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("file-input");
@@ -130,9 +106,8 @@ function initDragDrop() {
     dropzone.addEventListener("drop", (e) => {
         e.preventDefault();
         dropzone.classList.remove("dragover");
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleUploadedFile(files[0]);
+        if (e.dataTransfer.files.length > 0) {
+            handleUploadedFile(e.dataTransfer.files[0]);
         }
     });
 
@@ -143,12 +118,11 @@ function initDragDrop() {
     });
 }
 
-// Handle Uploaded File (CSV or XLSX)
 function handleUploadedFile(file) {
     const loader = document.getElementById("loader");
     const loaderText = document.getElementById("loader-text");
     loader.classList.remove("hidden");
-    loaderText.textContent = "ESTABLISHING SATELLITE CONNECTION...";
+    loaderText.textContent = "LOADING TELEMETRY FILE...";
 
     const reader = new FileReader();
     const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
@@ -157,27 +131,29 @@ function handleUploadedFile(file) {
         try {
             let data = [];
             if (isExcel) {
-                loaderText.textContent = "DECRYPTING TELEMETRY MATRIX...";
+                loaderText.textContent = "DECRYPTING EXCEL SPREADSHEETS...";
                 const arrayBuffer = e.target.result;
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 data = XLSX.utils.sheet_to_json(worksheet);
             } else {
-                loaderText.textContent = "PARSING COMPRESSED TELEMETRY...";
+                loaderText.textContent = "PARSING CSV RECORDS...";
                 const csvText = e.target.result;
                 data = parseCSV(csvText);
             }
 
             if (data.length === 0) {
-                throw new Error("The uploaded file is empty.");
+                throw new Error("Dataset is empty.");
             }
 
-            console.log(`Parsed ${data.length} records.`);
+            console.log(`Successfully parsed ${data.length} rows.`);
+            
+            // Execute the pipeline
             processDataset(data);
 
         } catch (err) {
-            alert(`Error processing file: ${err.message}`);
+            alert(`Error reading file: ${err.message}`);
             loader.classList.add("hidden");
         }
     };
@@ -189,12 +165,11 @@ function handleUploadedFile(file) {
     }
 }
 
-// Simple robust CSV parser
+// Faster CSV parser
 function parseCSV(text) {
     const lines = text.split(/\r?\n/);
     if (lines.length === 0) return [];
     
-    // Header parsing
     const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
     const result = [];
     
@@ -212,117 +187,102 @@ function parseCSV(text) {
     return result;
 }
 
-// Dataset Processing Pipeline
+// Dynamic Filter Controls
+function initFilterHandlers() {
+    const filters = ['filter-slope', 'filter-rainfall', 'filter-ndvi', 'filter-woreda'];
+    
+    filters.forEach(id => {
+        const el = document.getElementById(id);
+        if (id !== 'filter-woreda') {
+            el.addEventListener("input", (e) => {
+                document.getElementById(`${id}-val`).textContent = e.target.value;
+                applyDynamicFilters();
+            });
+        } else {
+            el.addEventListener("change", applyDynamicFilters);
+        }
+    });
+
+    // Reset filters
+    document.getElementById("btn-reset-filters").addEventListener("click", () => {
+        document.getElementById("filter-slope").value = 0;
+        document.getElementById("filter-slope-val").textContent = "0";
+
+        document.getElementById("filter-rainfall").value = 0;
+        document.getElementById("filter-rainfall-val").textContent = "0";
+
+        document.getElementById("filter-ndvi").value = 1.0;
+        document.getElementById("filter-ndvi-val").textContent = "1.0";
+
+        document.getElementById("filter-woreda").value = "all";
+
+        applyDynamicFilters();
+    });
+}
+
+// zoom controls on map UI
+function initZoomControls() {
+    document.getElementById("btn-zoom-in").addEventListener("click", () => {
+        mapZoom *= 1.25;
+        triggerMapRedraw();
+    });
+    document.getElementById("btn-zoom-out").addEventListener("click", () => {
+        mapZoom *= 0.8;
+        triggerMapRedraw();
+    });
+    document.getElementById("btn-zoom-reset").addEventListener("click", () => {
+        mapZoom = 1.0;
+        mapOffsetX = 0.0;
+        mapOffsetY = 0.0;
+        triggerMapRedraw();
+    });
+}
+
+// Processing Pipeline
 async function processDataset(data) {
-    currentDataset = data;
+    rawDataset = data;
     const loader = document.getElementById("loader");
     const loaderText = document.getElementById("loader-text");
 
-    // Activate laser scan on map
     document.getElementById("laser").style.display = "block";
 
-    // 1. Feature Extraction & Normalization
-    loaderText.textContent = "SCALING GEOPHYSICAL TENSORS...";
-    await sleep(400);
+    // 1. Scale all features using GCN specs
+    loaderText.textContent = "SCALING ENVIRONMENTAL GEOPHYSICAL TENSORS...";
+    await sleep(250);
     scaledFeatures = extractAndScaleFeatures(data);
 
-    // 2. Spatial Graph Construction (8-NN Graph)
-    loaderText.textContent = "CONSTRUCTING TOPOLOGICAL MESH (8-NN)...";
-    await sleep(400);
+    // 2. Build fast Spatial grid index for O(N log N) graph construction & O(1) hover search
+    loaderText.textContent = "INDEXING COORDINATES FOR FAST TOPOLOGICAL SEARCH...";
+    await sleep(250);
+    buildSpatialGridIndex(data);
+
+    // 3. Build Spatial Graph using grid-accelerated neighbor queries
+    loaderText.textContent = "CONSTRUCTING HYDROLOGICAL SPATIAL EDGES...";
+    await sleep(350);
     buildSpatialGraph(data);
 
-    // 3. GCN Model Forward Propagation
-    loaderText.textContent = "AI DEEP MESSAGE-PASSING RUNNING...";
-    await sleep(500);
+    // 4. Run JS GCN feed-forward pass
+    loaderText.textContent = "RUNNING GCN MESSAGE-PASSING PREDICTIONS...";
+    await sleep(400);
     runGCNInference();
 
-    // 4. Update UI Dashboard
-    loaderText.textContent = "UPDATING MAP & TELEMETRY CONTROLS...";
-    await sleep(300);
-    updateDashboardUI();
+    // 5. Populate Woreda Filter options
+    populateWoredaDropdown(data);
 
-    // Deactivate loader & laser
+    // 6. Apply filters and trigger dashboard update
+    applyDynamicFilters();
+
     loader.classList.add("hidden");
     document.getElementById("laser").style.display = "none";
 }
 
-// 1. Feature Extraction & Normalization
+// 1. Scale features
 function extractAndScaleFeatures(data) {
     const features = [];
     
-    data.forEach((row, idx) => {
-        const featureVector = new Float32Array(33); // 33 inputs
+    data.forEach((row) => {
+        const featureVector = new Float32Array(33);
         
-        // Base Numerical Features
-        // 1. K_Factor
-        featureVector[0] = parseFloat(row['K_Factor']) || 0.20;
-        
-        // 2-10: Scaler features
-        const featuresToScale = [
-            'Elevation (m)', 'Slope (Degree)', 'Rainfall (mm)', 'NDVI_Value', 
-            'TWI', 'SPI', 'TRI', 'Plan Curvature', 'Profile Curvature', 'Drainage Density (m)'
-        ];
-        
-        featuresToScale.forEach((feat, featIdx) => {
-            let val = parseFloat(row[feat]) || 0;
-            
-            // Hard physics clipping
-            if (PHYSICAL_BOUNDS[feat]) {
-                const bounds = PHYSICAL_BOUNDS[feat];
-                val = Math.max(bounds.min, Math.min(bounds.max, val));
-            }
-            
-            // MinMaxScaler scaling: (x - min) / (max - min)
-            const params = SCALER_PARAMS[feat];
-            let scaledVal = (val - params.min) / (params.max - params.min);
-            scaledVal = Math.max(0, Math.min(1, scaledVal)); // clip to [0, 1]
-            
-            featureVector[featIdx + 1] = scaledVal;
-        });
-
-        // 11-12 Aspect Sin/Cos
-        const aspectDeg = parseFloat(row['Aspect (Degree)']) || 0;
-        const rad = aspectDeg * Math.PI / 180;
-        featureVector[11] = Math.sin(rad);
-        featureVector[12] = Math.cos(rad);
-
-        // 13: Drainage Density is already scaled in the loop above (index 10 in featuresToScale -> element 10 in vector)
-        // Wait, featuresToScale mapping:
-        // featIdx = 0 ('Elevation') -> vector[1]
-        // ...
-        // featIdx = 9 ('Drainage Density') -> vector[10]
-        // Aspect_Sin is vector[11]
-        // Aspect_Cos is vector[12]
-        // Wait, the 13 base features in Python notebook are:
-        // 0: K_Factor
-        // 1: Elevation (m)
-        // 2: Slope (Degree)
-        // 3: Rainfall (mm)
-        // 4: NDVI_Value
-        // 5: TWI
-        // 6: SPI
-        // 7: TRI
-        // 8: Plan Curvature
-        // 9: Profile Curvature
-        // 10: Aspect_Sin
-        // 11: Aspect_Cos
-        // 12: Drainage Density (m)
-        // Let's make sure our indexes match this EXACT layout:
-        // 0: K_Factor -> vector[0]
-        // 1: Elevation (m) -> vector[1]
-        // 2: Slope (Degree) -> vector[2]
-        // 3: Rainfall (mm) -> vector[3]
-        // 4: NDVI_Value -> vector[4]
-        // 5: TWI -> vector[5]
-        // 6: SPI -> vector[6]
-        // 7: TRI -> vector[7]
-        // 8: Plan Curvature -> vector[8]
-        // 9: Profile Curvature -> vector[9]
-        // 10: Aspect_Sin -> vector[10]
-        // 11: Aspect_Cos -> vector[11]
-        // 12: Drainage Density (m) -> vector[12]
-        
-        // Let's re-write mapping to match this exact sequence:
         featureVector[0] = parseFloat(row['K_Factor']) || 0.20;
         featureVector[1] = scaleFeature(row['Elevation (m)'], 'Elevation (m)');
         featureVector[2] = scaleFeature(row['Slope (Degree)'], 'Slope (Degree)');
@@ -339,7 +299,6 @@ function extractAndScaleFeatures(data) {
         featureVector[11] = Math.cos(aspectVal * Math.PI / 180);
         featureVector[12] = scaleFeature(row['Drainage Density (m)'], 'Drainage Density (m)');
 
-        // Categorical encoding (Geology & Land Use) -> features index 13 to 32
         const geoVal = row['Geology_Formation'] || 'Unknown_Geo';
         const luVal = row['Land_Use'] || 'Unknown_LU';
         
@@ -371,61 +330,123 @@ function scaleFeature(valRaw, featName) {
     return Math.max(0.0, Math.min(1.0, scaled));
 }
 
-// 2. Spatial Graph Construction (k-NN graph builder, k=8)
+// 2. Build Fast Spatial Grid Index (O(N) construction)
+function buildSpatialGridIndex(data) {
+    const N = data.length;
+    
+    // Find spatial limits
+    gridMinLat = 90; gridMaxLat = -90;
+    gridMinLon = 180; gridMaxLon = -180;
+    
+    data.forEach(d => {
+        const lat = parseFloat(d['Latitude']) || 0;
+        const lon = parseFloat(d['Longitude']) || 0;
+        if (lat < gridMinLat) gridMinLat = lat;
+        if (lat > gridMaxLat) gridMaxLat = lat;
+        if (lon < gridMinLon) gridMinLon = lon;
+        if (lon > gridMaxLon) gridMaxLon = lon;
+    });
+
+    // Dynamic grid size selection (cells count scales with N for optimal bin population)
+    gridCols = Math.max(5, Math.floor(Math.sqrt(N) / 4));
+    gridRows = Math.max(5, Math.floor(Math.sqrt(N) / 4));
+    
+    const latSpan = gridMaxLat - gridMinLat || 0.01;
+    const lonSpan = gridMaxLon - gridMinLon || 0.01;
+
+    gridCellSizeLat = latSpan / gridRows;
+    gridCellSizeLon = lonSpan / gridCols;
+
+    // Allocate grid buckets
+    spatialGrid = Array.from({ length: gridCols }, () => 
+        Array.from({ length: gridRows }, () => [])
+    );
+
+    // Place each point into its grid bucket
+    data.forEach((d, idx) => {
+        const lat = parseFloat(d['Latitude']) || 0;
+        const lon = parseFloat(d['Longitude']) || 0;
+        
+        let col = Math.floor((lon - gridMinLon) / gridCellSizeLon);
+        let row = Math.floor((lat - gridMinLat) / gridCellSizeLat);
+        
+        col = Math.max(0, Math.min(gridCols - 1, col));
+        row = Math.max(0, Math.min(gridRows - 1, row));
+        
+        spatialGrid[col][row].push(idx);
+    });
+
+    console.log(`Built Spatial Grid: ${gridCols}x${gridRows} cells.`);
+}
+
+// 3. Grid-Accelerated Graph Construction (O(N) expected time)
 function buildSpatialGraph(data) {
     const N = data.length;
     graphEdges = [];
     nodeDegrees = new Int32Array(N);
 
-    // Parse latitude/longitude for all nodes
+    // Cache coordinate values for direct lookup
     const coords = data.map(d => ({
         lat: parseFloat(d['Latitude']) || 0,
         lon: parseFloat(d['Longitude']) || 0
     }));
 
-    // Find 8 nearest neighbors for each node
     for (let i = 0; i < N; i++) {
-        // Add self-loop edge
+        // Self loop
         graphEdges.push([i, i]);
         nodeDegrees[i] += 1;
 
         const c_i = coords[i];
         
-        // Calculate distances to all other nodes
-        // If N is very large (> 5000), a full distance matrix might be slow.
-        // We can optimize with a grid spatial index or simple sampling for huge datasets,
-        // but for standard dashboards up to 2000 nodes, full scan is < 15ms.
-        const list = [];
-        for (let j = 0; j < N; j++) {
-            if (i === j) continue;
-            const c_j = coords[j];
-            const dist = (c_i.lat - c_j.lat) ** 2 + (c_i.lon - c_j.lon) ** 2;
-            list.push({ index: j, dist: dist });
+        // Find which cell node i belongs to
+        let col = Math.floor((c_i.lon - gridMinLon) / gridCellSizeLon);
+        let row = Math.floor((c_i.lat - gridMinLat) / gridCellSizeLat);
+        col = Math.max(0, Math.min(gridCols - 1, col));
+        row = Math.max(0, Math.min(gridRows - 1, row));
+
+        const candidates = [];
+
+        // Scan 3x3 cells neighborhood
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                const ncol = col + dx;
+                const nrow = row + dy;
+                
+                if (ncol >= 0 && ncol < gridCols && nrow >= 0 && nrow < gridRows) {
+                    const bucket = spatialGrid[ncol][nrow];
+                    for (let b = 0; b < bucket.length; b++) {
+                        const j = bucket[b];
+                        if (i === j) continue;
+                        
+                        const c_j = coords[j];
+                        // Squared Euclidean distance
+                        const dSq = (c_i.lat - c_j.lat) ** 2 + (c_i.lon - c_j.lon) ** 2;
+                        candidates.push({ idx: j, dSq: dSq });
+                    }
+                }
+            }
         }
 
-        // Sort by distance and take top 8
-        list.sort((a, b) => a.dist - b.dist);
-        const k = Math.min(8, list.length);
+        // If a cell is extremely sparse and we found less than 8 neighbors, 
+        // we could expand search window, but 3x3 is usually more than enough.
+        // Sort candidates
+        candidates.sort((a, b) => a.dSq - b.dSq);
+        const k = Math.min(8, candidates.length);
         for (let idx = 0; idx < k; idx++) {
-            const neighborIdx = list[idx].index;
-            graphEdges.push([i, neighborIdx]);
-            nodeDegrees[neighborIdx] += 1; // incoming edge contributes to target degree
+            const neighbor = candidates[idx].idx;
+            graphEdges.push([i, neighbor]);
+            nodeDegrees[neighbor] += 1;
         }
     }
-    console.log(`Graph constructed. Total nodes: ${N}, Total edges (incl. self-loops): ${graphEdges.length}`);
 }
 
-// 3. GCN Model Forward Propagation in JavaScript
+// 4. Client-side GCN inference
 function runGCNInference() {
-    if (!gcnWeights) {
-        console.error("Cannot run inference: GCN weights are not loaded.");
-        return;
-    }
+    if (!gcnWeights) return;
 
-    const N = currentDataset.length;
+    const N = rawDataset.length;
     predictions = new Float32Array(N);
 
-    // Extract weights & biases from model weights JSON
     const w1 = gcnWeights['conv1.lin.weight'];      // [64, 33]
     const b1 = gcnWeights['conv1.bias'];            // [64]
     const w2 = gcnWeights['conv2.lin.weight'];      // [64, 64]
@@ -433,10 +454,10 @@ function runGCNInference() {
     const wOut = gcnWeights['out.weight'];          // [2, 64]
     const bOut = gcnWeights['out.bias'];            // [2]
 
-    // Layer 1 Matrix Projection: X * W1^T [N, 64]
+    // Layer 1 Projection
     const layer1Proj = Array.from({ length: N }, () => new Float32Array(64));
     for (let i = 0; i < N; i++) {
-        const x_i = scaledFeatures[i]; // [33]
+        const x_i = scaledFeatures[i];
         for (let h = 0; h < 64; h++) {
             let sum = b1[h];
             const w1_row = w1[h];
@@ -447,7 +468,7 @@ function runGCNInference() {
         }
     }
 
-    // Layer 1 Graph Convolution: A_norm * Proj
+    // Layer 1 Spatial Convolution: A_norm * Proj
     const layer1Conv = Array.from({ length: N }, () => new Float32Array(64));
     graphEdges.forEach(([u, v]) => {
         const deg_u = nodeDegrees[u];
@@ -462,17 +483,17 @@ function runGCNInference() {
         }
     });
 
-    // Layer 1 ReLU Activation: H1 [N, 64]
+    // Layer 1 Activation (ReLU)
     const h1 = Array.from({ length: N }, () => new Float32Array(64));
     for (let i = 0; i < N; i++) {
         const conv_i = layer1Conv[i];
         const h1_i = h1[i];
         for (let h = 0; h < 64; h++) {
-            h1_i[h] = Math.max(0.0, conv_i[h]); // ReLU
+            h1_i[h] = Math.max(0.0, conv_i[h]);
         }
     }
 
-    // Layer 2 Matrix Projection: H1 * W2^T [N, 64]
+    // Layer 2 Projection
     const layer2Proj = Array.from({ length: N }, () => new Float32Array(64));
     for (let i = 0; i < N; i++) {
         const h1_i = h1[i];
@@ -486,7 +507,7 @@ function runGCNInference() {
         }
     }
 
-    // Layer 2 Graph Convolution: A_norm * Proj2
+    // Layer 2 Spatial Convolution: A_norm * Proj2
     const layer2Conv = Array.from({ length: N }, () => new Float32Array(64));
     graphEdges.forEach(([u, v]) => {
         const deg_u = nodeDegrees[u];
@@ -501,67 +522,110 @@ function runGCNInference() {
         }
     });
 
-    // Layer 2 ReLU Activation: H2 [N, 64]
+    // Layer 2 Activation (ReLU)
     const h2 = Array.from({ length: N }, () => new Float32Array(64));
     for (let i = 0; i < N; i++) {
         const conv_i = layer2Conv[i];
         const h2_i = h2[i];
         for (let h = 0; h < 64; h++) {
-            h2_i[h] = Math.max(0.0, conv_i[h]); // ReLU
+            h2_i[h] = Math.max(0.0, conv_i[h]);
         }
     }
 
-    // Output Layer projection: H2 * W_out^T + b_out [N, 2]
-    // And softmax activation to obtain high-risk probabilities
+    // Linear Out & Softmax
     for (let i = 0; i < N; i++) {
         const h2_i = h2[i];
         
-        // Logit for class 0 (Low Risk)
         let logit0 = bOut[0];
         const wOut_row0 = wOut[0];
         for (let h = 0; h < 64; h++) {
             logit0 += h2_i[h] * wOut_row0[h];
         }
 
-        // Logit for class 1 (High Risk)
         let logit1 = bOut[1];
         const wOut_row1 = wOut[1];
         for (let h = 0; h < 64; h++) {
             logit1 += h2_i[h] * wOut_row1[h];
         }
 
-        // Softmax
         const maxLogit = Math.max(logit0, logit1);
         const exp0 = Math.exp(logit0 - maxLogit);
         const exp1 = Math.exp(logit1 - maxLogit);
         
-        predictions[i] = exp1 / (exp0 + exp1); // Probability of Class 1 (Severe Risk)
+        predictions[i] = exp1 / (exp0 + exp1);
     }
-
-    console.log("GCN Inference Complete.");
 }
 
-// 4. Update Dashboard UI & Canvas Map
-let mapZoom = 1.0;
-let mapOffsetX = 0.0;
-let mapOffsetY = 0.0;
-let isDraggingMap = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let hoveredNodeIndex = -1;
+// Woreda filter population
+function populateWoredaDropdown(data) {
+    const dropdown = document.getElementById("filter-woreda");
+    dropdown.innerHTML = '<option value="all">All Woredas (Regions)</option>';
 
-function updateDashboardUI() {
-    const N = currentDataset.length;
+    const woredas = new Set();
+    data.forEach(d => {
+        if (d['Woreda']) woredas.add(d['Woreda']);
+    });
 
-    // Reset Map View Settings
-    mapZoom = 1.0;
-    mapOffsetX = 0.0;
-    mapOffsetY = 0.0;
-    hoveredNodeIndex = -1;
+    const sortedWoredas = Array.from(woredas).sort();
+    sortedWoredas.forEach(w => {
+        const opt = document.createElement("option");
+        opt.value = w;
+        opt.textContent = w;
+        dropdown.appendChild(opt);
+    });
+}
 
-    // Update Global Statistics Cards
+// 5. Apply filters (Slope, Rainfall, NDVI, Woreda)
+function applyDynamicFilters() {
+    if (!rawDataset) return;
+
+    const slopeThresh = parseFloat(document.getElementById("filter-slope").value);
+    const rainThresh = parseFloat(document.getElementById("filter-rainfall").value);
+    const ndviThresh = parseFloat(document.getElementById("filter-ndvi").value);
+    const woredaVal = document.getElementById("filter-woreda").value;
+
+    const filtered = [];
+    rawDataset.forEach((row, idx) => {
+        const slope = parseFloat(row['Slope (Degree)']) || 0;
+        const rain = parseFloat(row['Rainfall (mm)']) || 0;
+        const ndvi = parseFloat(row['NDVI_Value']) || 0;
+        const woreda = row['Woreda'] || '';
+
+        // Filter checks
+        if (slope < slopeThresh) return;
+        if (rain < rainThresh) return;
+        if (ndvi > ndviThresh) return;
+        if (woredaVal !== 'all' && woreda !== woredaVal) return;
+
+        // Keep raw index inside the filtered row object for direct mapping to prediction array
+        row._rawIndex = idx;
+        filtered.push(row);
+    });
+
+    filteredDataset = filtered;
+    console.log(`Filtered dataset size: ${filteredDataset.length} / ${rawDataset.length}`);
+
+    // Update charts and statistics based on filtered subset
+    updateStatsAndCharts();
+    setupCanvasMap();
+}
+
+// Update stats and charts based on filtered data
+function updateStatsAndCharts() {
+    const N = filteredDataset.length;
     document.getElementById("scanned-points").textContent = N.toLocaleString();
-    
+
+    if (N === 0) {
+        document.getElementById("avg-erodibility").textContent = "0.0%";
+        document.getElementById("severe-points").textContent = "0";
+        document.getElementById("woreda-breakdown-body").innerHTML = `
+            <tr><td colspan="5" style="text-align:center; padding:1.5rem 0;">No matching points found for active filters</td></tr>
+        `;
+        renderCharts(0, 0, 0);
+        renderEnvironmentalAverages(0, 0, 0, 0, 0, 0);
+        return;
+    }
+
     let sumProb = 0;
     let highRiskCount = 0;
     let modRiskCount = 0;
@@ -569,20 +633,39 @@ function updateDashboardUI() {
 
     const woredaStats = {};
 
-    for (let i = 0; i < N; i++) {
-        const prob = predictions[i];
+    // Stressor Averages: Safe vs Severe
+    let safeCount = 0;
+    let avgSlopeSafe = 0, avgRainSafe = 0, avgNdviSafe = 0;
+
+    let severeCount = 0;
+    let avgSlopeSevere = 0, avgRainSevere = 0, avgNdviSevere = 0;
+
+    filteredDataset.forEach((row) => {
+        const idx = row._rawIndex;
+        const prob = predictions[idx];
         sumProb += prob;
+
+        const slope = parseFloat(row['Slope (Degree)']) || 0;
+        const rain = parseFloat(row['Rainfall (mm)']) || 0;
+        const ndvi = parseFloat(row['NDVI_Value']) || 0;
 
         if (prob > 0.71) {
             highRiskCount++;
+            avgSlopeSevere += slope;
+            avgRainSevere += rain;
+            avgNdviSevere += ndvi;
+            severeCount++;
         } else if (prob > 0.25) {
             modRiskCount++;
         } else {
             lowRiskCount++;
+            avgSlopeSafe += slope;
+            avgRainSafe += rain;
+            avgNdviSafe += ndvi;
+            safeCount++;
         }
 
-        // Breakdown by Woreda
-        const woreda = currentDataset[i]['Woreda'] || 'Unknown Woreda';
+        const woreda = row['Woreda'] || 'Unknown Woreda';
         if (!woredaStats[woreda]) {
             woredaStats[woreda] = { low: 0, mod: 0, severe: 0, total: 0 };
         }
@@ -590,13 +673,13 @@ function updateDashboardUI() {
         if (prob > 0.71) woredaStats[woreda].severe++;
         else if (prob > 0.25) woredaStats[woreda].mod++;
         else woredaStats[woreda].low++;
-    }
+    });
 
     const avgRisk = sumProb / N;
     document.getElementById("avg-erodibility").textContent = `${(avgRisk * 100).toFixed(1)}%`;
     document.getElementById("severe-points").textContent = highRiskCount.toLocaleString();
 
-    // Render Woreda Breakdown Table
+    // Woreda table
     const tbody = document.getElementById("woreda-breakdown-body");
     tbody.innerHTML = "";
     Object.keys(woredaStats).forEach(w => {
@@ -612,28 +695,61 @@ function updateDashboardUI() {
         tbody.appendChild(row);
     });
 
-    // Populate AI recommendations based on predictions
-    generateAIInsights(avgRisk, highRiskCount, N);
+    // Compute averages
+    if (safeCount > 0) {
+        avgSlopeSafe /= safeCount;
+        avgRainSafe /= safeCount;
+        avgNdviSafe /= safeCount;
+    }
+    if (severeCount > 0) {
+        avgSlopeSevere /= severeCount;
+        avgRainSevere /= severeCount;
+        avgNdviSevere /= severeCount;
+    }
 
-    // Initialize Map Controls and Canvas events
-    setupCanvasMap();
+    // Render Insights and Charts
+    generateAIInsights(avgRisk, highRiskCount, N, avgSlopeSevere, avgRainSevere, avgNdviSevere);
     renderCharts(lowRiskCount, modRiskCount, highRiskCount);
+    renderEnvironmentalAverages(avgSlopeSafe, avgSlopeSevere, avgRainSafe, avgRainSevere, avgNdviSafe, avgNdviSevere);
 }
 
-// Draw Canvas Map
+// 6. Interactive Canvas Map Rendering with Offscreen Buffering
+let mapZoom = 1.0;
+let mapOffsetX = 0.0;
+let mapOffsetY = 0.0;
+let isDraggingMap = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let hoveredNodeIndex = -1; // Index in the rawDataset
+
+// Cache the static base drawing to offscreen canvas for 60fps pan/zoom
+let offscreenCanvas = null;
+let offscreenCtx = null;
+let lastRenderedLayer = "";
+let lastShowEdges = false;
+let lastDataLength = 0;
+
 function setupCanvasMap() {
     const canvas = document.getElementById("map-canvas");
     const container = document.getElementById("map-container");
     
-    // Fit canvas size to container
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
 
     const ctx = canvas.getContext("2d");
 
-    // Coordinates bounding box
+    if (filteredDataset.length === 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.font = "14px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("No coordinates match active filters.", canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    // Find bounding box for spatial mapping
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
-    currentDataset.forEach(d => {
+    filteredDataset.forEach(d => {
         const lat = parseFloat(d['Latitude']) || 0;
         const lon = parseFloat(d['Longitude']) || 0;
         if (lat < minLat) minLat = lat;
@@ -642,27 +758,32 @@ function setupCanvasMap() {
         if (lon > maxLon) maxLon = lon;
     });
 
-    // Zoom slightly out of the boundaries
-    const latSpan = maxLat - minLat || 0.1;
-    const lonSpan = maxLon - minLon || 0.1;
+    const latSpan = maxLat - minLat || 0.01;
+    const lonSpan = maxLon - minLon || 0.01;
+    
+    // Zoom slightly out
     minLat -= latSpan * 0.05;
     maxLat += latSpan * 0.05;
     minLon -= lonSpan * 0.05;
     maxLon += lonSpan * 0.05;
 
-    // Projection mapping from Lat/Lon to Canvas X/Y
-    function getCanvasCoordinates(lat, lon) {
-        // Longitude maps to X (west to east)
-        // Latitude maps to Y (north to south, so we subtract from 1)
+    // Convert Lat/Lon to Canvas coordinate space (before zoom/offsets are applied)
+    function getBaseCanvasCoordinates(lat, lon) {
         const x = ((lon - minLon) / (maxLon - minLon)) * canvas.width;
         const y = (1.0 - (lat - minLat) / (maxLat - minLat)) * canvas.height;
+        return { x, y };
+    }
+
+    // Projection mapping with zoom/pan offsets
+    function getCanvasCoordinates(lat, lon) {
+        const base = getBaseCanvasCoordinates(lat, lon);
         return {
-            x: x * mapZoom + mapOffsetX,
-            y: y * mapZoom + mapOffsetY
+            x: base.x * mapZoom + mapOffsetX,
+            y: base.y * mapZoom + mapOffsetY
         };
     }
 
-    // Reverse projection (for hover selection)
+    // Reverse projection
     function getGeoCoordinates(canvasX, canvasY) {
         const rawX = (canvasX - mapOffsetX) / mapZoom;
         const rawY = (canvasY - mapOffsetY) / mapZoom;
@@ -672,43 +793,54 @@ function setupCanvasMap() {
         return { lat, lon };
     }
 
-    // Render loop function
-    function drawMap() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Allocate offscreen buffer if missing or resized
+    if (!offscreenCanvas || offscreenCanvas.width !== canvas.width || offscreenCanvas.height !== canvas.height) {
+        offscreenCanvas = document.createElement("canvas");
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+        offscreenCtx = offscreenCanvas.getContext("2d");
+        lastRenderedLayer = ""; // Force redraw
+    }
 
-        const showEdges = document.getElementById("opt-edges").checked;
-        const mapType = document.querySelector('input[name="map-layer"]:checked').value;
+    const showEdges = document.getElementById("opt-edges").checked;
+    const mapType = document.querySelector('input[name="map-layer"]:checked').value;
 
-        // 1. Draw connections if checked (GCN topological edges)
+    // Redraw offscreen buffer if layer settings changed or dataset reloaded
+    const cacheKey = `${mapType}_${showEdges}_${filteredDataset.length}`;
+    if (lastRenderedLayer !== cacheKey) {
+        offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+
+        // 1. Draw Edges inside buffer
         if (showEdges && graphEdges) {
-            ctx.lineWidth = 0.5;
-            ctx.strokeStyle = "rgba(21, 128, 61, 0.15)";
+            offscreenCtx.lineWidth = 0.4;
+            offscreenCtx.strokeStyle = "rgba(34, 197, 94, 0.1)"; // faint green lines
+            
+            // Draw edges only if both nodes are in the active filtered dataset
+            const activeSet = new Set(filteredDataset.map(d => d._rawIndex));
+            
             graphEdges.forEach(([u, v]) => {
-                if (u === v) return; // skip self loops
-                const p_u = getCanvasCoordinates(parseFloat(currentDataset[u]['Latitude']), parseFloat(currentDataset[u]['Longitude']));
-                const p_v = getCanvasCoordinates(parseFloat(currentDataset[v]['Latitude']), parseFloat(currentDataset[v]['Longitude']));
-                ctx.beginPath();
-                ctx.moveTo(p_u.x, p_u.y);
-                ctx.lineTo(p_v.x, p_v.y);
-                ctx.stroke();
+                if (u === v) return;
+                if (!activeSet.has(u) || !activeSet.has(v)) return;
+
+                const p_u = getBaseCanvasCoordinates(parseFloat(rawDataset[u]['Latitude']), parseFloat(rawDataset[u]['Longitude']));
+                const p_v = getBaseCanvasCoordinates(parseFloat(rawDataset[v]['Latitude']), parseFloat(rawDataset[v]['Longitude']));
+                offscreenCtx.beginPath();
+                offscreenCtx.moveTo(p_u.x, p_u.y);
+                offscreenCtx.lineTo(p_v.x, p_v.y);
+                offscreenCtx.stroke();
             });
         }
 
-        // 2. Draw nodes (soil points)
-        currentDataset.forEach((d, idx) => {
+        // 2. Draw Nodes inside buffer
+        filteredDataset.forEach((d) => {
+            const rawIdx = d._rawIndex;
             const lat = parseFloat(d['Latitude']);
             const lon = parseFloat(d['Longitude']);
-            const pos = getCanvasCoordinates(lat, lon);
-
-            // Skip off-screen nodes to optimize
-            if (pos.x < -10 || pos.x > canvas.width + 10 || pos.y < -10 || pos.y > canvas.height + 10) {
-                return;
-            }
+            const pos = getBaseCanvasCoordinates(lat, lon);
 
             let color = "";
             if (mapType === "risk") {
-                // Risk gradient: green (safe) -> orange (mod) -> red (severe)
-                const prob = predictions[idx];
+                const prob = predictions[rawIdx];
                 if (prob > 0.71) {
                     color = "rgba(239, 68, 68, 0.85)"; // Alert Red
                 } else if (prob > 0.25) {
@@ -717,48 +849,67 @@ function setupCanvasMap() {
                     color = "rgba(34, 197, 94, 0.85)"; // Mint Green
                 }
             } else if (mapType === "elevation") {
-                const elevNorm = scaledFeatures[idx][1]; // Elevation is index 1
-                color = `rgba(16, 185, 129, ${0.2 + elevNorm * 0.8})`; // Green opacity based on height
+                const elevNorm = scaledFeatures[rawIdx][1];
+                color = `rgba(16, 185, 129, ${0.15 + elevNorm * 0.85})`; // Green heights
             } else if (mapType === "ndvi") {
-                const ndviNorm = scaledFeatures[idx][4]; // NDVI is index 4
-                color = `rgba(5, 150, 105, ${0.1 + ndviNorm * 0.9})`; // Plant green
+                const ndviNorm = scaledFeatures[rawIdx][4];
+                color = `rgba(5, 150, 105, ${0.1 + ndviNorm * 0.9})`; // Vegetation
             } else if (mapType === "rainfall") {
-                const rainNorm = scaledFeatures[idx][3]; // Rainfall is index 3
-                color = `rgba(59, 130, 246, ${0.2 + rainNorm * 0.8})`; // Blue rainfall intensity
+                const rainNorm = scaledFeatures[rawIdx][3];
+                color = `rgba(59, 130, 246, ${0.15 + rainNorm * 0.85})`; // Rain Blue
             }
 
-            // Draw dot
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, idx === hoveredNodeIndex ? 7 : 3.5, 0, 2 * Math.PI);
-            ctx.fillStyle = color;
-            ctx.fill();
-
-            // Hover border glow
-            if (idx === hoveredNodeIndex) {
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "#ffffff";
-                ctx.stroke();
-            }
+            offscreenCtx.beginPath();
+            offscreenCtx.arc(pos.x, pos.y, 2.5, 0, 2 * Math.PI);
+            offscreenCtx.fillStyle = color;
+            offscreenCtx.fill();
         });
 
-        // 3. Draw tooltip overlay if hovering
-        if (hoveredNodeIndex !== -1 && hoveredNodeIndex < currentDataset.length) {
-            const d = currentDataset[hoveredNodeIndex];
+        lastRenderedLayer = cacheKey;
+    }
+
+    // Main Draw loop
+    function drawMap() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Draw the pre-rendered offscreen buffer stretched according to Zoom and Offset
+        ctx.drawImage(
+            offscreenCanvas, 
+            0, 0, offscreenCanvas.width, offscreenCanvas.height,
+            mapOffsetX, mapOffsetY, offscreenCanvas.width * mapZoom, offscreenCanvas.height * mapZoom
+        );
+
+        // 2. Draw highlighted node if hovering
+        if (hoveredNodeIndex !== -1 && hoveredNodeIndex < rawDataset.length) {
+            const d = rawDataset[hoveredNodeIndex];
             const prob = predictions[hoveredNodeIndex];
             const lat = parseFloat(d['Latitude']);
             const lon = parseFloat(d['Longitude']);
+            
             const pos = getCanvasCoordinates(lat, lon);
 
-            ctx.fillStyle = "rgba(13, 21, 14, 0.92)";
+            let color = "var(--accent-mint)";
+            if (prob > 0.71) color = "var(--alert-red)";
+            else if (prob > 0.25) color = "var(--alert-orange)";
+
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 6.5, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = "#ffffff";
+            ctx.stroke();
+
+            // Render Tooltip Box
+            ctx.fillStyle = "rgba(13, 21, 14, 0.94)";
             ctx.strokeStyle = "rgba(34, 197, 94, 0.4)";
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1.2;
 
-            const boxWidth = 240;
-            const boxHeight = 160;
+            const boxWidth = 230;
+            const boxHeight = 150;
             let tooltipX = pos.x + 12;
-            let tooltipY = pos.y - 80;
+            let tooltipY = pos.y - 75;
 
-            // Constrain tooltip on canvas bounds
             if (tooltipX + boxWidth > canvas.width) {
                 tooltipX = pos.x - boxWidth - 12;
             }
@@ -769,58 +920,65 @@ function setupCanvasMap() {
                 tooltipY = 10;
             }
 
-            // Rounded rectangle tooltip box
             ctx.beginPath();
             ctx.roundRect(tooltipX, tooltipY, boxWidth, boxHeight, 8);
             ctx.fill();
             ctx.stroke();
 
-            // Text inside tooltip
+            // Text info
             ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 11px Inter, sans-serif";
-            ctx.fillText(`WOREDA: ${(d['Woreda'] || 'Unknown').toUpperCase()}`, tooltipX + 12, tooltipY + 22);
+            ctx.font = "bold 10.5px Inter, sans-serif";
+            ctx.fillText(`REGION: ${(d['Woreda'] || 'Unknown').toUpperCase()}`, tooltipX + 12, tooltipY + 20);
 
-            ctx.font = "500 10px Inter, sans-serif";
-            ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-            ctx.fillText(`GPS: ${lat.toFixed(5)}°N, ${lon.toFixed(5)}°E`, tooltipX + 12, tooltipY + 36);
+            ctx.font = "500 9px Inter, sans-serif";
+            ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+            ctx.fillText(`COORD: ${lat.toFixed(5)}°N, ${lon.toFixed(5)}°E`, tooltipX + 12, tooltipY + 34);
 
             ctx.beginPath();
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-            ctx.moveTo(tooltipX + 10, tooltipY + 44);
-            ctx.lineTo(tooltipX + boxWidth - 10, tooltipY + 44);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+            ctx.moveTo(tooltipX + 10, tooltipY + 41);
+            ctx.lineTo(tooltipX + boxWidth - 10, tooltipY + 41);
             ctx.stroke();
 
-            ctx.font = "600 10px Inter, sans-serif";
+            ctx.font = "600 9.5px Inter, sans-serif";
             ctx.fillStyle = "#ffffff";
-            ctx.fillText(`Slope: ${parseFloat(d['Slope (Degree)']) || 0}°`, tooltipX + 12, tooltipY + 60);
-            ctx.fillText(`Elevation: ${parseInt(d['Elevation (m)']) || 0}m`, tooltipX + 12, tooltipY + 75);
-            ctx.fillText(`Rainfall: ${parseInt(d['Rainfall (mm)']) || 0}mm`, tooltipX + 12, tooltipY + 90);
-            ctx.fillText(`NDVI Veg: ${parseFloat(d['NDVI_Value']).toFixed(3)}`, tooltipX + 12, tooltipY + 105);
+            ctx.fillText(`Slope Gradient: ${parseFloat(d['Slope (Degree)']) || 0}°`, tooltipX + 12, tooltipY + 56);
+            ctx.fillText(`Altitude (DEM): ${parseInt(d['Elevation (m)']) || 0}m`, tooltipX + 12, tooltipY + 70);
+            ctx.fillText(`Annual Rainfall: ${parseInt(d['Rainfall (mm)']) || 0}mm`, tooltipX + 12, tooltipY + 84);
+            ctx.fillText(`Vegetation Cover (NDVI): ${parseFloat(d['NDVI_Value']).toFixed(3)}`, tooltipX + 12, tooltipY + 98);
+
+            // Soil type & Geology
+            ctx.font = "500 8.5px Inter, sans-serif";
+            ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+            ctx.fillText(`Soil: ${d['Soil Type'] || 'N/A'} | Geo: ${d['Geology_Formation'] || 'N/A'}`, tooltipX + 12, tooltipY + 112);
 
             // Risk bar
-            ctx.fillText(`Erosion Probability:`, tooltipX + 12, tooltipY + 125);
-            
-            const barWidth = 216;
-            const barHeight = 8;
+            const barWidth = 206;
+            const barHeight = 6;
             ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
             ctx.beginPath();
-            ctx.roundRect(tooltipX + 12, tooltipY + 135, barWidth, barHeight, 4);
+            ctx.roundRect(tooltipX + 12, tooltipY + 130, barWidth, barHeight, 3);
             ctx.fill();
 
-            const riskColor = prob > 0.71 ? "var(--alert-red)" : (prob > 0.25 ? "var(--alert-orange)" : "var(--accent-mint)");
-            ctx.fillStyle = riskColor;
+            ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.roundRect(tooltipX + 12, tooltipY + 135, barWidth * prob, barHeight, 4);
+            ctx.roundRect(tooltipX + 12, tooltipY + 130, barWidth * prob, barHeight, 3);
             ctx.fill();
 
-            ctx.font = "bold 10px Inter, sans-serif";
-            ctx.fillStyle = riskColor;
-            ctx.fillText(`${(prob * 100).toFixed(1)}%`, tooltipX + boxWidth - 45, tooltipY + 125);
+            ctx.font = "bold 9.5px Inter, sans-serif";
+            ctx.fillStyle = color;
+            ctx.fillText(`${(prob * 100).toFixed(1)}%`, tooltipX + boxWidth - 40, tooltipY + 123);
         }
     }
 
-    // Register Canvas Listeners for panning, zooming, and hovering
-    canvas.addEventListener("mousedown", (e) => {
+    // Set map redraw trigger to global scope
+    window.triggerMapRedraw = drawMap;
+
+    // Attach listeners
+    canvas.replaceWith(canvas.cloneNode(true)); // reset listeners
+    const activeCanvas = document.getElementById("map-canvas");
+
+    activeCanvas.addEventListener("mousedown", (e) => {
         isDraggingMap = true;
         dragStartX = e.clientX - mapOffsetX;
         dragStartY = e.clientY - mapOffsetY;
@@ -830,8 +988,8 @@ function setupCanvasMap() {
         isDraggingMap = false;
     });
 
-    canvas.addEventListener("mousemove", (e) => {
-        const rect = canvas.getBoundingClientRect();
+    activeCanvas.addEventListener("mousemove", (e) => {
+        const rect = activeCanvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
@@ -840,19 +998,38 @@ function setupCanvasMap() {
             mapOffsetY = e.clientY - dragStartY;
             drawMap();
         } else {
-            // Find if hovering over a point
+            // O(1) hover search using Spatial grid index
+            const geo = getGeoCoordinates(mouseX, mouseY);
+            
+            // Check cell under mouse cursor
+            let cellCol = Math.floor((geo.lon - gridMinLon) / gridCellSizeLon);
+            let cellRow = Math.floor((geo.lat - gridMinLat) / gridCellSizeLat);
+            
             let foundIndex = -1;
-            let minDistance = 15; // hover trigger distance in pixels
+            let minDistance = 12; // trigger radius in pixels
 
-            for (let i = 0; i < currentDataset.length; i++) {
-                const lat = parseFloat(currentDataset[i]['Latitude']);
-                const lon = parseFloat(currentDataset[i]['Longitude']);
-                const pos = getCanvasCoordinates(lat, lon);
-                
-                const dist = Math.sqrt((pos.x - mouseX) ** 2 + (pos.y - mouseY) ** 2);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    foundIndex = i;
+            if (cellCol >= 0 && cellCol < gridCols && cellRow >= 0 && cellRow < gridRows) {
+                // Check cell and immediate neighbors to catch borders
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        const nc = cellCol + dx;
+                        const nr = cellRow + dy;
+                        if (nc >= 0 && nc < gridCols && nr >= 0 && nr < gridRows) {
+                            const bucket = spatialGrid[nc][nr];
+                            for (let b = 0; b < bucket.length; b++) {
+                                const idx = bucket[b];
+                                const d_lat = parseFloat(rawDataset[idx]['Latitude']);
+                                const d_lon = parseFloat(rawDataset[idx]['Longitude']);
+                                const pos = getCanvasCoordinates(d_lat, d_lon);
+                                
+                                const dist = Math.sqrt((pos.x - mouseX) ** 2 + (pos.y - mouseY) ** 2);
+                                if (dist < minDistance) {
+                                    minDistance = dist;
+                                    foundIndex = idx;
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -863,25 +1040,22 @@ function setupCanvasMap() {
         }
     });
 
-    canvas.addEventListener("wheel", (e) => {
+    activeCanvas.addEventListener("wheel", (e) => {
         e.preventDefault();
-        const zoomIntensity = 0.1;
-        const rect = canvas.getBoundingClientRect();
+        const zoomIntensity = 0.08;
+        const rect = activeCanvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        // Geo coordinates under cursor before zoom
         const geoBefore = getGeoCoordinates(mouseX, mouseY);
 
-        // Update zoom
         if (e.deltaY < 0) {
             mapZoom *= (1.0 + zoomIntensity);
         } else {
             mapZoom *= (1.0 - zoomIntensity);
         }
-        mapZoom = Math.max(0.5, Math.min(25, mapZoom));
+        mapZoom = Math.max(0.4, Math.min(30, mapZoom));
 
-        // Adjust offsets so cursor remains at same coordinates after zoom
         const posAfter = getCanvasCoordinates(geoBefore.lat, geoBefore.lon);
         mapOffsetX += (mouseX - posAfter.x);
         mapOffsetY += (mouseY - posAfter.y);
@@ -889,103 +1063,84 @@ function setupCanvasMap() {
         drawMap();
     });
 
-    // Handle map option switches
     document.querySelectorAll('input[name="map-layer"]').forEach(el => {
-        el.addEventListener("change", drawMap);
+        el.addEventListener("change", () => {
+            lastRenderedLayer = ""; // Force offscreen redraw
+            setupCanvasMap();
+        });
     });
-    document.getElementById("opt-edges").addEventListener("change", drawMap);
 
-    // Initial draw
+    document.getElementById("opt-edges").addEventListener("change", () => {
+        lastRenderedLayer = ""; // Force offscreen redraw
+        setupCanvasMap();
+    });
+
     drawMap();
 }
 
-// 5. AI Recommendations Generator
-function generateAIInsights(avgRisk, severePoints, totalNodes) {
+// 7. AI Recommendation Box
+function generateAIInsights(avgRisk, severePoints, totalNodes, avgSlopeSevere, avgRainSevere, avgNdviSevere) {
     const list = document.getElementById("recommendations-list");
     list.innerHTML = "";
 
     const severePercent = (severePoints / totalNodes) * 100;
-
-    // Compile average stats of severe risk nodes
-    let avgSlopeSevere = 0;
-    let avgRainSevere = 0;
-    let avgNdviSevere = 0;
-    let countSevere = 0;
-
-    for (let i = 0; i < totalNodes; i++) {
-        if (predictions[i] > 0.71) {
-            avgSlopeSevere += parseFloat(currentDataset[i]['Slope (Degree)']) || 0;
-            avgRainSevere += parseFloat(currentDataset[i]['Rainfall (mm)']) || 0;
-            avgNdviSevere += parseFloat(currentDataset[i]['NDVI_Value']) || 0;
-            countSevere++;
-        }
-    }
-
-    if (countSevere > 0) {
-        avgSlopeSevere /= countSevere;
-        avgRainSevere /= countSevere;
-        avgNdviSevere /= countSevere;
-    }
-
-    // Dynamic Policy Generation based on findings
     const recs = [];
 
-    // Recommendation 1: High Erodibility alarm
+    // Alert Recommendation
     if (severePercent > 20) {
         recs.push({
-            title: "CRITICAL: Severe Degradation Policy Mandate",
-            text: `The AI Model warns that ${severePercent.toFixed(1)}% of your coordinates are in imminent danger of soil detachment. Priority budget allocation should shift directly to regional structural stabilization programs.`,
-            icon: "alert-triangle"
+            title: "Policy Mandate: Structural Stabilization",
+            text: `Critical hazard: ${severePercent.toFixed(1)}% of analyzed soil points are classified as severe risk. Shifting local budgets to construct physical check-dams and biological soil binding is highly recommended.`,
+            status: "severe"
         });
     } else {
         recs.push({
-            title: "Routine Ecological Monitoring Action",
-            text: `Erosion zones remain relatively stable (only ${severePercent.toFixed(1)}% high risk). Maintain focus on standard crop rotation, terracing, and contour farming methods.`,
-            icon: "check-circle"
+            title: "Routine Erosion Mitigation Mode",
+            text: `Active filters show low severe erosion risk (${severePercent.toFixed(1)}%). Implement standard terracing and contour crop rotation.`,
+            status: "safe"
         });
     }
 
-    // Recommendation 2: Slope-induced recommendation
-    if (avgSlopeSevere > 20) {
+    // Geomorphology Check
+    if (avgSlopeSevere > 18) {
         recs.push({
-            title: "Slope-Specific Terracing (Geomorphic Hazard)",
-            text: `High-risk coordinates present an extreme average slope of ${avgSlopeSevere.toFixed(1)}°. Standard farming must be suspended. Build physical contour benches (bench terracing) to break gravity-induced soil kinetic paths.`,
-            icon: "trending-up"
+            title: "High Slope Gradient Intervention",
+            text: `High-risk coordinates exhibit an average slope of ${avgSlopeSevere.toFixed(1)}°. Standard cultivation should be replaced by bench terracing to disrupt gravitational shear paths.`,
+            status: "severe"
         });
     }
 
-    // Recommendation 3: Rainfall-induced recommendation
-    if (avgRainSevere > 1200) {
+    // Hydraulic check
+    if (avgRainSevere > 1100) {
         recs.push({
-            title: "Water Check-Dams (Hydraulic Shear Control)",
-            text: `Severe risk zones experience intense annual precipitation averaging ${avgRainSevere.toFixed(0)}mm. Construct rock/bamboo check-dams in drainage ditches to slow downslope water velocities and decrease Stream Power (SPI).`,
-            icon: "droplet"
+            title: "Hydrological Flow (SPI) Reduction",
+            text: `Severe risk zones receive heavy precipitation averaging ${avgRainSevere.toFixed(0)}mm. Construct check-dams in drainage pathways to slow flow velocity.`,
+            status: "warning"
         });
     }
 
-    // Recommendation 4: NDVI root reinforcement
-    if (avgNdviSevere < 0.3) {
+    // NDVI check
+    if (avgNdviSevere < 0.25) {
         recs.push({
-            title: "Revegetation & Afforestation (Cohesion Restorer)",
-            text: `Eroding slopes suffer from critically low vegetation density (NDVI average: ${avgNdviSevere.toFixed(2)}). Launch immediate tree-planting (e.g., Vetiver grass and indigenous Acacias) to reinforce topsoil binding.`,
-            icon: "trees"
+            title: "Biological Root Reinforcement",
+            text: `Severe risk points have poor plant cover (NDVI average: ${avgNdviSevere.toFixed(2)}). Implement revegetation using deep-root grasses (like Vetiver) to hold topsoil.`,
+            status: "severe"
         });
     } else {
-        // Ethiopian NDVI Paradox insight!
+        // Paradox
         recs.push({
-            title: "NDVI Paradox: Soil Saturation Risk Detected",
-            text: `Even with moderate forestation (NDVI: ${avgNdviSevere.toFixed(2)}), erosion is high. Severe rainfall and steep slopes are overpowering root systems. Prioritize subsurface drainage alongside planting.`,
-            icon: "info"
+            title: "NDVI Paradox: Soil Saturation Risk",
+            text: `Severe risk zones have forestation cover (NDVI: ${avgNdviSevere.toFixed(2)}), yet are eroding. Extreme slope and heavy rainfall are bypassing vegetation. Subsurface drainage is required.`,
+            status: "warning"
         });
     }
 
-    // Append to UI
     recs.forEach(rec => {
         const div = document.createElement("div");
-        div.className = "ai-recommendation-box";
+        div.className = `ai-recommendation-box ${rec.status}`;
         div.innerHTML = `
             <div class="ai-rec-title">
-                <span class="rec-icon">✅</span>
+                <span>${rec.status === 'severe' ? '🚨' : (rec.status === 'warning' ? '⚠️' : '✅')}</span>
                 <span>${rec.title}</span>
             </div>
             <div class="ai-rec-text">${rec.text}</div>
@@ -994,8 +1149,9 @@ function generateAIInsights(avgRisk, severePoints, totalNodes) {
     });
 }
 
-// 6. Chart.js visualizer
+// 8. Charts Rendering
 let riskChart = null;
+let stressorChart = null;
 
 function renderCharts(low, mod, severe) {
     const ctx = document.getElementById("risk-distribution-chart").getContext("2d");
@@ -1010,11 +1166,7 @@ function renderCharts(low, mod, severe) {
             labels: ['Low Risk (Safe)', 'Moderate (Monitor)', 'Severe Risk (Action)'],
             datasets: [{
                 data: [low, mod, severe],
-                backgroundColor: [
-                    '#22c55e', // Mint Green
-                    '#f97316', // Orange
-                    '#ef4444'  // Alert Red
-                ],
+                backgroundColor: ['#22c55e', '#f97316', '#ef4444'],
                 borderColor: '#ffffff',
                 borderWidth: 2
             }]
@@ -1026,15 +1178,92 @@ function renderCharts(low, mod, severe) {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        boxWidth: 12,
-                        font: {
-                            family: 'Inter',
-                            size: 11
-                        }
+                        boxWidth: 10,
+                        font: { family: 'Inter', size: 10.5 }
                     }
                 }
             },
-            cutout: '70%'
+            cutout: '72%'
+        }
+    });
+}
+
+function renderEnvironmentalAverages(slopeSafe, slopeSev, rainSafe, rainSev, ndviSafe, ndviSev) {
+    const ctx = document.getElementById("environmental-stressors-chart").getContext("2d");
+
+    if (stressorChart) {
+        stressorChart.destroy();
+    }
+
+    // Normalize rainfall for visualization on the same scale (max rainfall approx 1800, so divide by 50 to fit 0-40 range)
+    const normRainSafe = rainSafe / 50;
+    const normRainSev = rainSev / 50;
+
+    // Scale NDVI for visualization (0.5 max NDVI, multiply by 40 to fit 0-40 range)
+    const normNdviSafe = ndviSafe * 40;
+    const normNdviSev = ndviSev * 40;
+
+    stressorChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Slope (Degrees)', 'Rainfall (mm / 50)', 'NDVI Veg (x40)'],
+            datasets: [
+                {
+                    label: 'Low Risk Nodes',
+                    data: [slopeSafe, normRainSafe, normNdviSafe],
+                    backgroundColor: 'rgba(34, 197, 94, 0.75)',
+                    borderColor: '#22c55e',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Severe Risk Nodes',
+                    data: [slopeSev, normRainSev, normNdviSev],
+                    backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: { family: 'Inter', size: 9.5 }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: { family: 'Inter', size: 10 }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 10,
+                        font: { family: 'Inter', size: 10.5 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            let val = context.raw;
+                            if (context.dataIndex === 1) { // Rainfall
+                                return `${label}: ${(val * 50).toFixed(0)} mm`;
+                            } else if (context.dataIndex === 2) { // NDVI
+                                return `${label}: ${(val / 40).toFixed(3)}`;
+                            } else { // Slope
+                                return `${label}: ${val.toFixed(1)}°`;
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
 }

@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ethiopia Soil Erosion Predictor AI - GCN Dashboard</title>
+    <title>Terrashield AI™ - Geospatial Land Degradation Platform</title>
     
     <!-- Primary SEO Meta Tags -->
-    <meta name="title" content="Ethiopia Soil Erosion Predictor AI - GCN Spatial Dashboard">
-    <meta name="description" content="An advanced environmental dashboard running client-side Graph Convolutional Networks (GCN) to predict soil erosion risks across Amhara, Ethiopia. Upload CSV or Excel files for instant spatial intelligence.">
-    <meta name="keywords" content="Jupyter, GCN, Soil Erosion, Amhara, Ethiopia, Spatial Analysis, Machine Learning, Telemetry, GeoAI">
+    <meta name="title" content="Terrashield AI™ - Geospatial Land Degradation Platform">
+    <meta name="description" content="High-fidelity geospatial analysis platform utilizing Graph Convolutional Networks (GCN) to predict soil erodibility and land degradation. Open CSV/Excel datasets for real-time risk assessment.">
+    <meta name="keywords" content="GIS, GeoAI, Soil Erosion, Amhara, GCN, Hydrology, Terrashield">
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="dashboard.css">
@@ -19,42 +19,31 @@
 </head>
 <body>
 
-    <!-- Header & Navigation -->
+    <!-- Header -->
     <header>
         <div class="header-container">
             <div class="brand">
-                <div class="logo-icon">🛰️</div>
+                <div class="logo-icon">🌿</div>
                 <div>
-                    <h1 class="brand-title">ETHIOPIA SOIL EROSION PREDICTOR</h1>
-                    <div class="brand-subtitle">Geospatial Graph Neural Network Dashboard</div>
+                    <h1 class="brand-title">TERRASHIELD AI™</h1>
+                    <div class="brand-subtitle">High-Fidelity Geospatial Land Degradation Platform</div>
                 </div>
             </div>
             
             <div style="display: flex; align-items: center; gap: 1.5rem;">
                 <div class="sat-status">
-                    <span id="sat-dot" class="sat-status-dot"></span>
-                    <span id="sat-text" class="sans-font">AI MIND: OFFLINE</span>
+                    <span id="sat-dot" class="sat-status-dot active"></span>
+                    <span id="system-state" class="sat-status-value ready">SYSTEM READY</span>
                 </div>
-                
-                <nav class="nav-tabs">
-                    <button class="tab-btn active" data-tab="dashboard">
-                        <span>📊</span> Dashboard
-                    </button>
-                    <button class="tab-btn" data-tab="paper">
-                        <span>📄</span> Research Paper
-                    </button>
-                </nav>
             </div>
         </div>
     </header>
 
     <!-- Main Container -->
     <main>
-        
-        <!-- Dashboard Section -->
-        <section id="dashboard-view" class="dashboard-grid">
+        <div class="dashboard-grid">
             
-            <!-- Left Side controls panel -->
+            <!-- Left Side Control Center -->
             <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                 
                 <!-- File Upload Panel -->
@@ -62,26 +51,71 @@
                     <h2 class="panel-title"><span>📥</span> Satellite Telemetry Input</h2>
                     <div id="dropzone" class="dropzone">
                         <div class="dropzone-icon">📁</div>
-                        <h3 class="dropzone-title">Drag & drop dataset here</h3>
+                        <h3 class="dropzone-title">Import Telemetry Dataset</h3>
                         <p class="dropzone-desc">Accepts .xlsx, .xls, or .csv files<br>(e.g. Merged_Woredas_All.xlsx)</p>
                         <input type="file" id="file-input" class="hidden" accept=".xlsx,.xls,.csv">
+                    </div>
+                </div>
+
+                <!-- Geophysical Filtering Panel -->
+                <div class="panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+                        <h2 class="panel-title" style="border: none; padding: 0; margin: 0;"><span>🎛️</span> Analytical Filters</h2>
+                        <button id="btn-reset-filters" style="background: none; border: none; color: var(--primary-green); font-size: 0.75rem; font-weight: 700; cursor: pointer; text-transform: uppercase;">Reset</button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                        
+                        <!-- Slope Slider -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                                <span style="font-weight: 600; color: var(--text-secondary)">Min Slope Angle:</span>
+                                <span style="font-weight: 700; color: var(--primary-green)"><span id="filter-slope-val">0</span>°</span>
+                            </div>
+                            <input type="range" id="filter-slope" min="0" max="60" value="0" style="width: 100%; accent-color: var(--primary-green);">
+                        </div>
+
+                        <!-- Rainfall Slider -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                                <span style="font-weight: 600; color: var(--text-secondary)">Min Annual Rainfall:</span>
+                                <span style="font-weight: 700; color: var(--primary-green)"><span id="filter-rainfall-val">0</span> mm</span>
+                            </div>
+                            <input type="range" id="filter-rainfall" min="0" max="1800" value="0" style="width: 100%; accent-color: var(--primary-green);">
+                        </div>
+
+                        <!-- NDVI Slider -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                                <span style="font-weight: 600; color: var(--text-secondary)">Max Vegetation (NDVI):</span>
+                                <span style="font-weight: 700; color: var(--primary-green)"><span id="filter-ndvi-val">1.0</span></span>
+                            </div>
+                            <input type="range" id="filter-ndvi" min="-0.2" max="1.0" step="0.05" value="1.0" style="width: 100%; accent-color: var(--primary-green);">
+                        </div>
+
+                        <!-- Woreda Dropdown -->
+                        <div>
+                            <div style="font-size: 0.8rem; margin-bottom: 0.25rem; font-weight: 600; color: var(--text-secondary)">Woreda Administrative Boundary:</div>
+                            <select id="filter-woreda" style="width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: white; font-size: 0.85rem; font-family: 'Inter', sans-serif; color: var(--text-primary);">
+                                <option value="all">All Woredas (Regions)</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Telemetry Stats Panel -->
                 <div class="panel">
-                    <h2 class="panel-title"><span>📶</span> AI Model Telemetry</h2>
+                    <h2 class="panel-title"><span>📶</span> Sensor Status</h2>
                     <div class="stats-list">
                         <div class="stat-item">
-                            <span class="stat-label">Scanned Data Points</span>
+                            <span class="stat-label">Active Coordinates</span>
                             <span id="scanned-points" class="stat-value">0</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Avg Erodibility Risk</span>
+                            <span class="stat-label">Average Risk Index</span>
                             <span id="avg-erodibility" class="stat-value">0.0%</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Severe Risk Points</span>
+                            <span class="stat-label">Critical Redzones</span>
                             <span id="severe-points" class="stat-value" style="color:var(--alert-red)">0</span>
                         </div>
                     </div>
@@ -89,8 +123,8 @@
 
                 <!-- Woreda Breakdown Panel -->
                 <div class="panel">
-                    <h2 class="panel-title"><span>📌</span> Susceptibility Breakdown</h2>
-                    <div style="max-height: 250px; overflow-y: auto;">
+                    <h2 class="panel-title"><span>📌</span> Regional Risk Profiles</h2>
+                    <div style="max-height: 200px; overflow-y: auto;">
                         <table class="breakdown-table">
                             <thead>
                                 <tr>
@@ -104,7 +138,7 @@
                             <tbody id="woreda-breakdown-body">
                                 <tr>
                                     <td colspan="5" style="text-align:center; color:var(--text-secondary); padding: 1.5rem 0;">
-                                        Upload a dataset to view regional statistics
+                                        Import a GIS telemetry dataset to generate regional break-downs.
                                     </td>
                                 </tr>
                             </tbody>
@@ -120,8 +154,7 @@
                 <!-- Canvas Map Container -->
                 <div class="map-container" id="map-container">
                     <div class="map-grid-overlay"></div>
-                    <div class="map-radar-circle" style="top: 20%; left: 30%;"></div>
-                    <div class="map-radar-circle" style="top: 60%; left: 70%;"></div>
+                    <div class="map-radar-circle" style="top: 25%; left: 25%;"></div>
                     
                     <!-- Scanner Laser -->
                     <div class="laser-line" id="laser"></div>
@@ -132,73 +165,103 @@
                     <!-- Loading overlay inside map -->
                     <div id="loader" class="loader-overlay hidden">
                         <div class="spinner"></div>
-                        <div id="loader-text" class="loader-text">ESTABLISHING CONNECTION...</div>
+                        <div id="loader-text" class="loader-text">ESTABLISHING TELEMETRY CONNECTION...</div>
                     </div>
 
-                    <!-- Map Layer Controls overlay -->
+                    <!-- Map Overlay Controls -->
                     <div class="map-controls">
                         <div class="map-control-title">Active Map Layer</div>
                         <label class="map-option">
                             <input type="radio" name="map-layer" value="risk" checked>
-                            <span>🔴 GCN Erosion Risk (AI Output)</span>
+                            <span>🔴 Erosion Risk Gradient</span>
                         </label>
                         <label class="map-option">
                             <input type="radio" name="map-layer" value="elevation">
-                            <span>🟢 Elevation (DEM Height)</span>
+                            <span>🟢 Digital Elevation Model (Height)</span>
                         </label>
                         <label class="map-option">
                             <input type="radio" name="map-layer" value="ndvi">
-                            <span>🌿 NDVI Vegetation Index</span>
+                            <span>🌿 Vegetation Density (NDVI)</span>
                         </label>
                         <label class="map-option">
                             <input type="radio" name="map-layer" value="rainfall">
-                            <span>🔵 Annual Rainfall Index</span>
+                            <span>🔵 Precipitation Intensity</span>
                         </label>
-                        <div class="map-control-title" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 0.5rem;">Topology</div>
+                        <div class="map-control-title" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 0.5rem;">Overlay Layers</div>
                         <label class="map-option">
                             <input type="checkbox" id="opt-edges" checked>
-                            <span>🕸️ Show GCN Graph Edges</span>
+                            <span>🕸️ GCN Topological Edges</span>
                         </label>
                     </div>
+
+                    <!-- Zoom Navigation controls overlay -->
+                    <div style="position: absolute; right: 1.5rem; bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 20;">
+                        <button id="btn-zoom-in" style="width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: rgba(13, 21, 14, 0.85); backdrop-filter: blur(12px); color: white; font-size: 1.15rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--card-shadow); transition: background 0.2s;">+</button>
+                        <button id="btn-zoom-out" style="width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: rgba(13, 21, 14, 0.85); backdrop-filter: blur(12px); color: white; font-size: 1.15rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--card-shadow); transition: background 0.2s;">−</button>
+                        <button id="btn-zoom-reset" style="width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); background: rgba(13, 21, 14, 0.85); backdrop-filter: blur(12px); color: white; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--card-shadow); transition: background 0.2s;">Reset</button>
+                    </div>
+
+                    <!-- Map Legend overlay -->
+                    <div style="position: absolute; left: 1.5rem; top: 1.5rem; background: rgba(13, 21, 14, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(21, 128, 61, 0.2); border-radius: 0.75rem; padding: 0.75rem 1rem; color: white; z-index: 20; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8rem;">
+                        <div class="map-control-title" style="margin-bottom: 0.25rem;">Legend</div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
+                            <span>Severe Erodibility Risk</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #f97316; display: inline-block;"></span>
+                            <span>Moderate Erodibility Risk</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
+                            <span>Safe / Stable Soil</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 0.25rem; padding-top: 0.25rem;">
+                            <span style="width: 12px; height: 1px; background: rgba(34, 197, 94, 0.3); display: inline-block;"></span>
+                            <span>GCN Mesh Adjacency</span>
+                        </div>
+                    </div>
+
                 </div>
                 
                 <!-- Recommendations & Charts Grid -->
                 <div class="analysis-charts-grid">
                     
-                    <!-- AI recommendation report -->
-                    <div class="panel ai-report-panel">
-                        <h2 class="panel-title"><span>🧠</span> AI Policy Advisory Board</h2>
-                        <div id="recommendations-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
-                            <div class="ai-recommendation-box" style="border-left-color: var(--border-color)">
-                                <div class="ai-rec-title" style="color: var(--text-secondary)">
-                                    <span>💡</span> System Idle
-                                </div>
-                                <div class="ai-rec-text">
-                                    Please drag and drop a spatial soil telemetry file (Excel or CSV) into the upload zone to run the Graph Convolutional Networks. The AI advisor will then generate site-specific mitigation recommendations.
-                                </div>
-                            </div>
+                    <!-- Environmental Stressors Chart -->
+                    <div class="panel">
+                        <h2 class="panel-title"><span>📊</span> Geomorphic & Climate Stressors</h2>
+                        <div class="chart-container">
+                            <canvas id="environmental-stressors-chart"></canvas>
                         </div>
                     </div>
-                    
-                    <!-- Distribution charts -->
+
+                    <!-- Distribution Chart -->
                     <div class="panel">
-                        <h2 class="panel-title"><span>📈</span> Risk Susceptibility Distribution</h2>
+                        <h2 class="panel-title"><span>📈</span> Soil Erodibility Distribution</h2>
                         <div class="chart-container">
                             <canvas id="risk-distribution-chart"></canvas>
                         </div>
                     </div>
                     
                 </div>
+
+                <!-- Policy recommendation report -->
+                <div class="panel ai-report-panel">
+                    <h2 class="panel-title"><span>🧠</span> Targeted Ecological Mitigation Proposals</h2>
+                    <div id="recommendations-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-height: 300px; overflow-y: auto; padding-right: 0.5rem;">
+                        <div class="ai-recommendation-box safe" style="grid-column: span 2;">
+                            <div class="ai-rec-title">
+                                <span>💡</span> System Idle
+                            </div>
+                            <div class="ai-rec-text">
+                                Please drag and drop a spatial soil telemetry file (Excel or CSV) into the upload zone to run the Graph Convolutional Networks. The platform will analyze the geomorphic slope gradients, annual precipitation distributions, and spectral vegetation covers to output targeted soil conservation strategies.
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
             </div>
             
-        </section>
-        
-        <!-- Academic Paper Section (Hidden by default) -->
-        <section id="paper-view" class="hidden">
-            <div class="paper-frame-container">
-                <iframe id="paper-iframe" class="paper-iframe"></iframe>
-            </div>
         </section>
         
     </main>
