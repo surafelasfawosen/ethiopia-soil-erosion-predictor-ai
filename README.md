@@ -25,7 +25,8 @@ You can interact with the live, fully functional prototype directly in your brow
 The full satellite telemetry dataset covering 150,000+ woreda coordinate data points across the Amhara region is available for download:
 
 * **Primary Dataset:** `Merged_Woredas_150k.xlsx` (~21 MB)
-* **Download Link:** [**Download Telemetry Dataset from Google Drive**](PASTE_GOOGLE_DRIVE_LINK_HERE)
+* **Download / Access Link:** [**Open & Download Dataset (Google Drive / Sheets)**](https://docs.google.com/spreadsheets/d/10YDMYTRMXBLV66RVWlivHyKGwsBnCG1o/edit?usp=sharing&ouid=115711897313806711621&rtpof=true&sd=true)
+* **Direct Download (.xlsx):** [**Direct Download Link (Excel)**](https://docs.google.com/spreadsheets/d/10YDMYTRMXBLV66RVWlivHyKGwsBnCG1o/export?format=xlsx)
 
 ### How to Test with the Dataset:
 1. Open the [Live Dashboard](https://surafelasfawosen.github.io/ethiopia-soil-erosion-predictor-ai/).
