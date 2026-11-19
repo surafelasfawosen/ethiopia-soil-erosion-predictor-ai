@@ -6,7 +6,7 @@
 [![Full Research Paper](https://img.shields.io/badge/Research%20Paper-View%20Publication-blue?style=for-the-badge&logo=googledocs)](https://surafelasfawosen.github.io/ethiopia-soil-erosion-predictor-ai/paper.html)
 [![Dataset Access](https://img.shields.io/badge/Dataset-Download%20Telemetry%20(.xlsx)-orange?style=for-the-badge&logo=googledrive)](https://docs.google.com/spreadsheets/d/10YDMYTRMXBLV66RVWlivHyKGwsBnCG1o/export?format=xlsx)
 
-  <h3><a href="https://surafelasfawosen.github.io/ethiopia-soil-erosion-predictor-ai/">🌿 Launch Live Interactive Prototype Dashboard</a> &nbsp;|&nbsp; <a href="https://surafelasfawosen.github.io/ethiopia-soil-erosion-predictor-ai/paper.html">🌐 View Full Published Research Paper</a></h3>
+  <h3><a href="https://surafelasfawosen.github.io/ethiopia-soil-erosion-predictor-ai/">🌿 Launch Live Interactive Prototype Dashboard</a> &nbsp;|&nbsp; <a href="https://surafelasfawosen.github.io/ethiopia-soil-erosion-predictor-ai/paper.html">🌐 View Full Research Paper</a></h3>
 </div>
 
 ---
